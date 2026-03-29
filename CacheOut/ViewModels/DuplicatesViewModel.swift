@@ -9,23 +9,42 @@ class DuplicatesViewModel: ObservableObject {
     @Published var phaseLabel: String = ""
     @Published var filesScanned: Int = 0
     @Published var scanError: String? = nil
+    /// Active category filters. Empty = show all.
+    @Published var activeCategories: Set<FileCategory> = []
+    /// Custom scan roots added via the in-view "Scan this folder…" button.
+    @Published var customScanRoots: [String] = []
+    /// Tracks every (original path → path in Trash) pair from the last remove operation.
+    /// Populated by remove(keeping:from:) and removeAll(). Used to drive "Put back" restore.
+    /// Cleared at the start of each new scan so it only reflects the most recent session.
+    @Published var lastTrashedItems: [(original: URL, inTrash: URL)] = []
 
     var totalSavings: Int64 {
-        groups.reduce(0) { $0 + ($1.fileSize * Int64($1.files.count - 1)) }
+        filteredGroups.reduce(0) { $0 + ($1.fileSize * Int64($1.files.count - 1)) }
+    }
+
+    var filteredGroups: [DuplicateGroup] {
+        guard !activeCategories.isEmpty else { return groups }
+        return groups.filter { group in
+            guard let first = group.files.first else { return false }
+            return activeCategories.contains(FileCategory.category(for: first))
+        }
     }
 
     private var scanTask: Task<Void, Never>? = nil
     private var lastScanned: Date? = nil
     private let staleDuration: TimeInterval = 5 * 60
 
-    // MARK: — Smart entry point (mirrors every other tab's pattern)
+    // MARK: — Smart entry point
     func scanIfNeeded() async {
         if isScanning { return }
+        let roots: [String] = customScanRoots.isEmpty
+            ? PurgeViewModel.defaultScanRoots()
+            : customScanRoots
         if groups.isEmpty {
-            await scan(roots: PurgeViewModel.defaultScanRoots())
+            await scan(roots: roots)
         } else if let last = lastScanned,
                   Date().timeIntervalSince(last) > staleDuration {
-            await scan(roots: PurgeViewModel.defaultScanRoots())
+            await scan(roots: roots)
         }
     }
 
@@ -36,6 +55,7 @@ class DuplicatesViewModel: ObservableObject {
         isScanning = true
         scanError = nil
         groups = []
+        lastTrashedItems = []   // new scan = new session, clear undo history
         progress = 0
         phaseLabel = "Grouping by size…"
 
@@ -65,7 +85,10 @@ class DuplicatesViewModel: ObservableObject {
         phaseLabel = ""
     }
 
-    // MARK: — Remove duplicates keeping one file
+    // MARK: — Remove duplicates keeping one chosen file
+    // keepURL is the file the user designated to keep — all other files in the
+    // group are moved to Trash. The original→trash pairs are appended to
+    // lastTrashedItems so the user can restore them via "Put back".
     func remove(keeping keepURL: URL, from group: DuplicateGroup) async {
         let toTrash = group.files.filter { $0 != keepURL }
         let fm = FileManager.default
@@ -73,13 +96,16 @@ class DuplicatesViewModel: ObservableObject {
 
         for url in toTrash {
             do {
-                try fm.trashItem(at: url, resultingItemURL: nil)
+                var resultURL: NSURL? = nil
+                try fm.trashItem(at: url, resultingItemURL: &resultURL)
+                if let dest = resultURL as URL? {
+                    lastTrashedItems.append((original: url, inTrash: dest))
+                }
             } catch {
                 errors.append(url.lastPathComponent + ": " + error.localizedDescription)
             }
         }
 
-        // Remove the group regardless (even if some failed, the rest are gone)
         groups.removeAll { $0.id == group.id }
         NotificationCenter.default.post(name: .diskFreed, object: nil)
 
@@ -88,13 +114,48 @@ class DuplicatesViewModel: ObservableObject {
         }
     }
 
-    // MARK: — Remove all duplicates (keep first in each group)
+    // MARK: — Remove all duplicates visible under the current filter (keep first in each group)
     func removeAll() async {
-        let snapshot = groups
+        let snapshot = filteredGroups
         for group in snapshot {
             guard let keep = group.files.first else { continue }
             await remove(keeping: keep, from: group)
         }
+    }
+
+    // MARK: — Restore trashed items back to their original locations
+    @discardableResult
+    func restoreLastClean() async -> (restored: Int, errors: [String]) {
+        let fm = FileManager.default
+        var restored = 0
+        var errors: [String] = []
+
+        for pair in lastTrashedItems {
+            guard fm.fileExists(atPath: pair.inTrash.path) else {
+                errors.append("\(pair.original.lastPathComponent): no longer in Trash")
+                continue
+            }
+            do {
+                let parent = pair.original.deletingLastPathComponent()
+                if !fm.fileExists(atPath: parent.path) {
+                    try fm.createDirectory(at: parent, withIntermediateDirectories: true)
+                }
+                guard !fm.fileExists(atPath: pair.original.path) else {
+                    errors.append("\(pair.original.lastPathComponent): destination already exists")
+                    continue
+                }
+                try fm.moveItem(at: pair.inTrash, to: pair.original)
+                restored += 1
+            } catch {
+                errors.append("\(pair.original.lastPathComponent): \(error.localizedDescription)")
+            }
+        }
+
+        if restored > 0 {
+            lastTrashedItems = []
+            NotificationCenter.default.post(name: .diskFreed, object: nil)
+        }
+        return (restored, errors)
     }
 }
 

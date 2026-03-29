@@ -66,8 +66,11 @@ struct CleanView: View {
     }
 
     // Confirmation lives here so the CTA button triggers the dialog
-    @State private var showCleanConfirm = false
-    @State private var showTrashOnlyConfirm = false
+    @State private var showCleanConfirm      = false
+    @State private var showTrashOnlyConfirm  = false
+    @State private var showRestoreConfirm    = false
+    /// Result of the last put-back operation — shown as a banner in completeState.
+    @State private var restoreResult: (restored: Int, errors: [String])? = nil
 
     private func syncCTA() {
         switch viewModel.state {
@@ -87,6 +90,7 @@ struct CleanView: View {
             }
         case .scanning:
             cta.label = "Scanning…"; cta.isEnabled = false; cta.action = nil
+            restoreResult = nil   // clear stale undo banner when a new scan starts
         case .cleaning:
             cta.label = "Cleaning…"; cta.isEnabled = false; cta.action = nil
         case .complete, .systemClean:
@@ -282,16 +286,51 @@ struct CleanView: View {
                 .font(.system(size: 13))
                 .foregroundColor(Color(nsColor: .secondaryLabelColor))
 
-            // "Open Trash" shortcut — Apple always pairs destructive actions
-            // with an easy way to review/recover what was moved.
-            Button("Open Trash to review") {
-                NSWorkspace.shared.open(
-                    URL(fileURLWithPath: (NSHomeDirectory() as NSString)
-                        .appendingPathComponent(".Trash")))
+            HStack(spacing: 10) {
+                Button("Open Trash to review") {
+                    NSWorkspace.shared.open(
+                        URL(fileURLWithPath: (NSHomeDirectory() as NSString)
+                            .appendingPathComponent(".Trash")))
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.regular)
+
+                // Put back — only shown when we have a recorded undo list
+                if !viewModel.lastTrashedItems.isEmpty {
+                    Button("Put everything back") {
+                        showRestoreConfirm = true
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.regular)
+                    .tint(.orange)
+                }
             }
-            .buttonStyle(.bordered)
-            .controlSize(.regular)
             .padding(.top, 4)
+
+            // Restore result banner
+            if let result = restoreResult {
+                HStack(spacing: 6) {
+                    Image(systemName: result.errors.isEmpty
+                          ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                        .foregroundColor(result.errors.isEmpty ? .green : .orange)
+                        .font(.system(size: 12))
+                    Text(result.errors.isEmpty
+                         ? "\(result.restored) item\(result.restored == 1 ? "" : "s") restored to original location\(result.restored == 1 ? "" : "s")"
+                         : "\(result.restored) restored, \(result.errors.count) failed")
+                        .font(.system(size: 12))
+                        .foregroundColor(result.errors.isEmpty
+                                         ? Color(nsColor: .labelColor)
+                                         : Color(nsColor: .systemOrange))
+                }
+                .padding(10)
+                .background((result.errors.isEmpty ? Color.green : Color.orange).opacity(0.08))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .overlay(RoundedRectangle(cornerRadius: 8)
+                    .stroke((result.errors.isEmpty ? Color.green : Color.orange).opacity(0.25),
+                            lineWidth: 0.5))
+                .padding(.horizontal, 40)
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
+            }
 
             // Error banner — shown when one or more items failed to trash
             if !viewModel.cleanErrors.isEmpty {
@@ -320,6 +359,21 @@ struct CleanView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .confirmationDialog(
+            "Put \(viewModel.lastTrashedItems.count) item\(viewModel.lastTrashedItems.count == 1 ? "" : "s") back?",
+            isPresented: $showRestoreConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Restore to original locations") {
+                Task {
+                    let result = await viewModel.restoreLastClean()
+                    withAnimation { restoreResult = result }
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Each item will be moved from the Trash back to where it was before cleaning. Items already emptied from Trash cannot be recovered.")
+        }
     }
 
     // MARK: — System clean / empty

@@ -36,12 +36,14 @@ class CleanViewModel: ObservableObject {
     @Published var categoriesData: [CategoryItem] = []
     @Published var cleanedSize: Int64 = 0
     @Published var lastScanned: Date? = nil
-    /// Number of sub-items suppressed by the whitelist during the last scan.
-    /// Used by CleanView to show the "N items hidden by whitelist" footer chip.
     @Published var whitelistSuppressedCount: Int = 0
-    /// Errors from the last clean pass — items that could not be moved to Trash.
-    /// Displayed as a banner in CleanView after cleaning completes.
     @Published var cleanErrors: [String] = []
+
+    // MARK: — Undo: tracks original→trash-destination pairs from the last clean.
+    // Populated by startCleaning() using the resultingItemURL from trashItem(at:resultingItemURL:).
+    // Cleared at the start of every new clean so it only reflects the most recent operation.
+    // Each tuple is (originalPath, pathInTrash) so we can move the item back exactly.
+    @Published var lastTrashedItems: [(original: URL, inTrash: URL)] = []
 
     var totalSelectedSize: Int64 {
         categoriesData.filter(\.isSelected).reduce(0) { $0 + $1.size }
@@ -266,6 +268,7 @@ class CleanViewModel: ObservableObject {
     func startCleaning() async {
         cleanedSize = totalSelectedSize
         cleanErrors = []
+        lastTrashedItems = []   // reset undo list for this clean pass
         CacheOutLogger.clean.debugIfEnabled("startCleaning() — \(selectedCategories.count) categories, \(cleanedSize) bytes, dryRun=\(UserDefaults.standard.bool(forKey: "dryRunMode"))")
         state = .cleaning(progress: 0)
         let fm = FileManager.default
@@ -274,13 +277,20 @@ class CleanViewModel: ObservableObject {
         func expand(_ p: String) -> String { p.hasPrefix("~/") ? home + p.dropFirst(1) : p }
 
         var errors: [String] = []
+        var trashed: [(original: URL, inTrash: URL)] = []
+
         let selectedItems = categoriesData.filter(\.isSelected).flatMap(\.subItems)
         for (idx, item) in selectedItems.enumerated() {
             if Task.isCancelled { break }
             let url = URL(fileURLWithPath: expand(item.path))
             if !dryRun && fm.fileExists(atPath: url.path) {
                 do {
-                    try fm.trashItem(at: url, resultingItemURL: nil)
+                    var resultURL: NSURL? = nil
+                    try fm.trashItem(at: url, resultingItemURL: &resultURL)
+                    // Record the original→trash mapping for undo
+                    if let dest = resultURL as URL? {
+                        trashed.append((original: url, inTrash: dest))
+                    }
                 } catch {
                     errors.append("\(item.name): \(error.localizedDescription)")
                     CacheOutLogger.clean.error("trashItem failed for \(item.path): \(error.localizedDescription)")
@@ -294,11 +304,55 @@ class CleanViewModel: ObservableObject {
             try? fm.removeItem(at: URL(fileURLWithPath: expand("~/.Trash")))
             try? fm.createDirectory(atPath: expand("~/.Trash"), withIntermediateDirectories: true)
         }
+        lastTrashedItems = trashed
         cleanErrors = errors
         lastScanned = nil
         state = .complete
         NotificationCenter.default.post(name: .diskFreed, object: nil)
         postCleanNotification(dryRun: dryRun)
+    }
+
+    // MARK: — Restore last clean (put back from Trash)
+    // Moves each item from its current Trash location back to its original path.
+    // Creates any missing intermediate directories (e.g. if the parent was also
+    // trashed and then emptied by the OS — in that case we restore what we can).
+    // Returns the count of successfully restored items and any error messages.
+    @discardableResult
+    func restoreLastClean() async -> (restored: Int, errors: [String]) {
+        let fm = FileManager.default
+        var restored = 0
+        var errors: [String] = []
+
+        for pair in lastTrashedItems {
+            // Verify the item still exists in Trash (user may have emptied it)
+            guard fm.fileExists(atPath: pair.inTrash.path) else {
+                errors.append("\(pair.original.lastPathComponent): no longer in Trash")
+                continue
+            }
+            do {
+                // Recreate parent directory if it was also cleaned
+                let parent = pair.original.deletingLastPathComponent()
+                if !fm.fileExists(atPath: parent.path) {
+                    try fm.createDirectory(at: parent, withIntermediateDirectories: true)
+                }
+                // If something already exists at the original path, don't clobber it
+                if fm.fileExists(atPath: pair.original.path) {
+                    errors.append("\(pair.original.lastPathComponent): destination already exists")
+                    continue
+                }
+                try fm.moveItem(at: pair.inTrash, to: pair.original)
+                restored += 1
+            } catch {
+                errors.append("\(pair.original.lastPathComponent): \(error.localizedDescription)")
+            }
+        }
+
+        if restored > 0 {
+            // Clear the undo list — can't undo twice
+            lastTrashedItems = []
+            NotificationCenter.default.post(name: .diskFreed, object: nil)
+        }
+        return (restored, errors)
     }
 
     private func postCleanNotification(dryRun: Bool = false) {

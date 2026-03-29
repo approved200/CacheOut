@@ -322,32 +322,22 @@ struct DevPurgeSettingsTab: View {
 
 // MARK: — Duplicates
 struct DuplicatesSettingsTab: View {
-    // Stored as KB. Default = 1024 (1 MB).
-    // Slider operates on a log scale: position 0.0 = 100 KB, 1.0 = 512 MB.
-    // This gives fine-grained control at the low end where it matters most.
     @AppStorage("duplicatesMinSizeKB")       private var minSizeKB: Int = 1024
     @AppStorage("duplicatesExcludedDirs")    private var excludedRaw: String = ""
 
-    // --- Slider logic ---
-    // Map slider [0, 1] ↔ log space [log(100), log(512*1024)] KB
     private static let logMin = log(100.0)
-    private static let logMax = log(512.0 * 1024.0)  // 512 MB in KB
+    private static let logMax = log(512.0 * 1024.0)
 
     private var sliderValue: Double {
-        get {
-            let clamped = max(100, min(minSizeKB, 512 * 1024))
-            return (log(Double(clamped)) - Self.logMin) / (Self.logMax - Self.logMin)
-        }
+        let clamped = max(100, min(minSizeKB, 512 * 1024))
+        return (log(Double(clamped)) - Self.logMin) / (Self.logMax - Self.logMin)
     }
 
     private func sliderMoved(to position: Double) {
         let raw = exp(Self.logMin + position * (Self.logMax - Self.logMin))
-        // Snap to clean round values so the label reads nicely
         minSizeKB = roundedKB(raw)
     }
 
-    // Round to a clean value: under 1 MB snap to nearest 100 KB,
-    // under 10 MB snap to nearest 1 MB, above that nearest 10 MB.
     private func roundedKB(_ raw: Double) -> Int {
         switch raw {
         case ..<1024:       return max(100, Int((raw / 100).rounded()) * 100)
@@ -359,21 +349,18 @@ struct DuplicatesSettingsTab: View {
     private var sizeLabel: String { formatKB(minSizeKB) }
 
     private func formatKB(_ kb: Int) -> String {
-        if kb < 1024          { return "\(kb) KB" }
+        if kb < 1024 { return "\(kb) KB" }
         let mb = kb / 1024
-        if mb < 1024          { return "\(mb) MB" }
-        let gb = mb / 1024
-        return "\(gb) GB"
+        if mb < 1024 { return "\(mb) MB" }
+        return "\(mb / 1024) GB"
     }
 
-    // --- Excluded dirs ---
     private var excludedDirs: [String] {
         excludedRaw.split(separator: "\n").map(String.init).filter { !$0.isEmpty }
     }
 
     var body: some View {
         Form {
-            // ── Minimum file size ──────────────────────────────────────────
             Section("Minimum file size") {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
@@ -387,33 +374,38 @@ struct DuplicatesSettingsTab: View {
                             .frame(minWidth: 64, alignment: .trailing)
                     }
                     HStack(spacing: 8) {
-                        Text("100 KB")
-                            .font(.system(size: 10))
-                            .foregroundColor(.secondary)
+                        Text("100 KB").font(.system(size: 10)).foregroundColor(.secondary)
                         Slider(
-                            value: Binding(
-                                get: { sliderValue },
-                                set: { sliderMoved(to: $0) }
-                            ),
+                            value: Binding(get: { sliderValue }, set: { sliderMoved(to: $0) }),
                             in: 0...1
                         )
-                        Text("512 MB")
-                            .font(.system(size: 10))
-                            .foregroundColor(.secondary)
+                        Text("512 MB").font(.system(size: 10)).foregroundColor(.secondary)
                     }
                 }
                 .padding(.vertical, 4)
                 Text("Smaller values find more duplicates but scan takes longer. Default is 1 MB.")
-                    .font(.system(size: 11))
-                    .foregroundColor(.secondary)
+                    .font(.system(size: 11)).foregroundColor(.secondary)
             }
 
-            // ── Excluded directories ───────────────────────────────────────
+            Section("Scan scope") {
+                HStack(spacing: 10) {
+                    Image(systemName: "folder.badge.plus")
+                        .foregroundColor(.accentColor).font(.system(size: 13)).frame(width: 18)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Use the 'Scan folder\u{2026}' button in the tab")
+                            .font(.system(size: 13))
+                        Text("Open the Duplicates tab and tap the pill button to add specific folders. Custom roots are session-scoped and don't persist across launches.")
+                            .font(.system(size: 11))
+                            .foregroundColor(Color(nsColor: .secondaryLabelColor))
+                    }
+                }
+                .padding(.vertical, 2)
+            }
+
             Section("Excluded directories") {
                 if excludedDirs.isEmpty {
                     Text("No directories excluded. All scan roots are searched.")
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
+                        .font(.system(size: 11)).foregroundColor(.secondary)
                 } else {
                     ForEach(excludedDirs, id: \.self) { dir in
                         HStack(spacing: 8) {
@@ -423,16 +415,11 @@ struct DuplicatesSettingsTab: View {
                                 .frame(width: 16)
                             Text(dir)
                                 .font(.system(size: 11, design: .monospaced))
-                                .lineLimit(1)
-                                .truncationMode(.middle)
+                                .lineLimit(1).truncationMode(.middle)
                             Spacer()
-                            Button {
-                                removeExcludedDir(dir)
-                            } label: {
-                                Image(systemName: "minus.circle.fill")
-                                    .foregroundColor(.red)
-                            }
-                            .buttonStyle(.plain)
+                            Button { removeExcludedDir(dir) } label: {
+                                Image(systemName: "minus.circle.fill").foregroundColor(.red)
+                            }.buttonStyle(.plain)
                         }
                     }
                 }
@@ -448,8 +435,7 @@ struct DuplicatesSettingsTab: View {
                     }
                 }
                 Text("Files inside excluded directories are ignored even if the directory is inside a scan root.")
-                    .font(.system(size: 11))
-                    .foregroundColor(.secondary)
+                    .font(.system(size: 11)).foregroundColor(.secondary)
             }
         }
         .formStyle(.grouped)
@@ -547,6 +533,21 @@ struct LargeFilesSettingsTab: View {
                 Text("Only files at or above this size appear in Large Files. Default is 100 MB.")
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
+            }
+
+            Section("Scan scope") {
+                HStack(spacing: 10) {
+                    Image(systemName: "folder.badge.plus")
+                        .foregroundColor(.accentColor).font(.system(size: 13)).frame(width: 18)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Use the 'Scan folder\u{2026}' button in the tab")
+                            .font(.system(size: 13))
+                        Text("Open the Large Files tab and tap the pill button to add specific folders. Custom roots are session-scoped and reset on next launch.")
+                            .font(.system(size: 11))
+                            .foregroundColor(Color(nsColor: .secondaryLabelColor))
+                    }
+                }
+                .padding(.vertical, 2)
             }
 
             // ── Excluded directories ───────────────────────────────────────

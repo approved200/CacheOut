@@ -4,7 +4,7 @@ struct LargeFilesView: View {
     @ObservedObject var viewModel: LargeFilesViewModel
     @EnvironmentObject private var cta: ToolbarCTAState
     @State private var itemToTrash: LargeFileItem? = nil
-    @State private var showConfirm = false
+    @State private var showConfirm  = false
     @AppStorage("largeFilesMinSizeKB") private var minSizeKB: Int = 102_400
 
     private var thresholdLabel: String {
@@ -43,6 +43,7 @@ struct LargeFilesView: View {
         } message: { Text("The file will be moved to the Trash. You can recover it if needed.") }
     }
 
+    // MARK: — Scanning
     private var scanningState: some View {
         VStack(spacing: 16) {
             ProgressView().controlSize(.large)
@@ -51,10 +52,16 @@ struct LargeFilesView: View {
             Text("Looking for files over \(thresholdLabel)")
                 .font(.system(size: 11))
                 .foregroundColor(Color(nsColor: .tertiaryLabelColor))
+            if !viewModel.customScanRoots.isEmpty {
+                Text("Scanning \(viewModel.customScanRoots.count) custom folder\(viewModel.customScanRoots.count == 1 ? "" : "s")")
+                    .font(.system(size: 11))
+                    .foregroundColor(Color(nsColor: .tertiaryLabelColor))
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
+    // MARK: — Empty state
     private var emptyState: some View {
         VStack(spacing: 12) {
             Image(systemName: "checkmark.seal.fill")
@@ -62,18 +69,21 @@ struct LargeFilesView: View {
                 .symbolRenderingMode(.hierarchical)
             Text("No large files found")
                 .font(.system(size: 17, weight: .semibold))
-            Text("No files over \(thresholdLabel) found in your home folder.")
+            Text("No files over \(thresholdLabel) found.")
                 .font(.system(size: 13))
                 .foregroundColor(Color(nsColor: .secondaryLabelColor))
             Text("Change the threshold in Settings → Large files.")
                 .font(.system(size: 11))
                 .foregroundColor(Color(nsColor: .tertiaryLabelColor))
+            addFolderButton
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
+    // MARK: — Results
     private var resultsView: some View {
         VStack(spacing: 0) {
+            // Error banner
             if let err = viewModel.scanError {
                 HStack(spacing: 8) {
                     Image(systemName: "exclamationmark.triangle.fill")
@@ -90,13 +100,17 @@ struct LargeFilesView: View {
                     .stroke(Color.orange.opacity(0.25), lineWidth: 0.5))
                 .padding(.horizontal, 20).padding(.top, 12)
             }
+
+            // Filter + scope bar
+            filterBar
+
             ScrollView {
                 LazyVStack(spacing: 1) {
-                    ForEach(viewModel.items) { item in
-                        LargeFileRow(item: item) {
+                    ForEach(viewModel.filteredItems) { item in
+                        LargeFileRow(item: item, onTrash: {
                             itemToTrash = item
                             showConfirm = true
-                        }
+                        })
                         Divider().padding(.leading, 20)
                     }
                 }
@@ -106,26 +120,160 @@ struct LargeFilesView: View {
                     .stroke(Color(nsColor: .separatorColor), lineWidth: 0.5))
                 .padding(20)
             }
+
             Divider()
+            // Status bar
             HStack {
-                Text("\(viewModel.items.count) files over \(thresholdLabel)")
-                    .font(.system(size: 12))
-                    .foregroundColor(Color(nsColor: .secondaryLabelColor))
+                let shown = viewModel.filteredItems.count
+                let total = viewModel.items.count
+                if shown == total {
+                    Text("\(total) files over \(thresholdLabel)")
+                } else {
+                    Text("\(shown) of \(total) files · filtered")
+                }
                 Spacer()
+                // Custom roots badge
+                if !viewModel.customScanRoots.isEmpty {
+                    Button {
+                        viewModel.customScanRoots = []
+                        Task { await viewModel.scan() }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 10))
+                            Text("\(viewModel.customScanRoots.count) custom folder\(viewModel.customScanRoots.count == 1 ? "" : "s")")
+                                .font(.system(size: 11))
+                        }
+                        .foregroundColor(.accentColor)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Clear custom folders and rescan home directory")
+                }
             }
+            .font(.system(size: 12))
+            .foregroundColor(Color(nsColor: .secondaryLabelColor))
             .padding(.horizontal, 20).padding(.vertical, 10)
         }
     }
 
+    // MARK: — Filter + scope bar
+    private var filterBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                // All pill
+                FilterPill(
+                    label: "All",
+                    icon: "tray.full",
+                    color: Color(nsColor: .secondaryLabelColor),
+                    isActive: viewModel.activeCategories.isEmpty
+                ) {
+                    viewModel.activeCategories = []
+                }
+
+                // Per-category pills — only show categories that exist in results
+                let presentCats = Set(viewModel.items.map(\.category))
+                ForEach(FileCategory.allCases) { cat in
+                    if presentCats.contains(cat) {
+                        FilterPill(
+                            label: cat.rawValue,
+                            icon: cat.icon,
+                            color: cat.color,
+                            isActive: viewModel.activeCategories.contains(cat)
+                        ) {
+                            if viewModel.activeCategories.contains(cat) {
+                                viewModel.activeCategories.remove(cat)
+                            } else {
+                                viewModel.activeCategories.insert(cat)
+                            }
+                        }
+                    }
+                }
+
+                Divider().frame(height: 16)
+
+                // Add folder button
+                addFolderButton
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 10)
+        }
+        .background(Color(nsColor: .controlBackgroundColor).opacity(0.4))
+    }
+
+    // MARK: — Add folder inline button
+    private var addFolderButton: some View {
+        Button {
+            let panel = NSOpenPanel()
+            panel.canChooseFiles = false
+            panel.canChooseDirectories = true
+            panel.allowsMultipleSelection = true
+            panel.prompt = "Scan"
+            panel.message = "Add folders to scan for large files."
+            if panel.runModal() == .OK {
+                for url in panel.urls {
+                    let path = url.path
+                    if !viewModel.customScanRoots.contains(path) {
+                        viewModel.customScanRoots.append(path)
+                    }
+                }
+                Task { await viewModel.scan() }
+            }
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: "folder.badge.plus")
+                    .font(.system(size: 11))
+                Text("Scan folder…")
+                    .font(.system(size: 11))
+            }
+            .foregroundColor(.accentColor)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(
+                Capsule()
+                    .fill(Color.accentColor.opacity(0.08))
+                    .overlay(Capsule().stroke(Color.accentColor.opacity(0.25), lineWidth: 0.5))
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
     private func syncCTA() {
-        // The toolbar already has a permanent ↺ scan button (⌘R).
-        // Pushing "Scan again" here would show two identical actions side-by-side.
-        // Large Files has no meaningful second action (unlike Clean's "Clean X GB"),
-        // so we leave the CTA empty — the icon button is sufficient.
         cta.label = ""; cta.isEnabled = false; cta.action = nil
     }
 }
 
+// MARK: — Reusable filter pill
+struct FilterPill: View {
+    let label   : String
+    let icon    : String
+    let color   : Color
+    let isActive: Bool
+    let action  : () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 5) {
+                Image(systemName: icon)
+                    .font(.system(size: 10, weight: .medium))
+                Text(label)
+                    .font(.system(size: 11, weight: .medium))
+            }
+            .foregroundColor(isActive ? color : Color(nsColor: .secondaryLabelColor))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(
+                Capsule()
+                    .fill(isActive ? color.opacity(0.12) : Color(nsColor: .quaternaryLabelColor).opacity(0.25))
+                    .overlay(Capsule().stroke(
+                        isActive ? color.opacity(0.35) : Color(nsColor: .separatorColor),
+                        lineWidth: 0.5))
+            )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: — Large file row
 private struct LargeFileRow: View {
     let item   : LargeFileItem
     let onTrash: () -> Void
@@ -144,6 +292,17 @@ private struct LargeFileRow: View {
                     .lineLimit(1).truncationMode(.middle)
             }
             Spacer()
+            // Category badge
+            HStack(spacing: 3) {
+                Image(systemName: item.category.icon)
+                    .font(.system(size: 9))
+                Text(item.category.rawValue)
+                    .font(.system(size: 9, weight: .medium))
+            }
+            .foregroundColor(item.category.color)
+            .padding(.horizontal, 6).padding(.vertical, 3)
+            .background(Capsule().fill(item.category.color.opacity(0.10)))
+
             Text(item.ageDays == 0 ? "Today"
                  : item.ageDays == 1 ? "Yesterday"
                  : "\(item.ageDays)d ago")
@@ -165,6 +324,10 @@ private struct LargeFileRow: View {
         }
         .padding(.horizontal, 14).padding(.vertical, 8)
         .contentShape(Rectangle())
+        // Single click → reveal in Finder
+        .onTapGesture {
+            NSWorkspace.shared.selectFile(item.url.path, inFileViewerRootedAtPath: "")
+        }
         .contextMenu {
             Button("Show in Finder") {
                 NSWorkspace.shared.selectFile(item.url.path, inFileViewerRootedAtPath: "")
