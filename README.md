@@ -1,0 +1,209 @@
+# Cache Out
+
+> Free, open-source, native macOS cleaner — built for people who are tired of paying for three apps to do one job.
+
+![macOS](https://img.shields.io/badge/macOS-26%2B-black)
+![Swift](https://img.shields.io/badge/Swift-6-orange)
+![License](https://img.shields.io/badge/license-MIT-green)
+
+---
+
+## Why Cache Out exists
+
+Three paid apps currently own the Mac cleaning space:
+
+- **CleanMyMac** ($65.40/year) — cleans caches and manages apps
+- **DaisyDisk** ($10 one-time) — visualises disk usage
+- **AppCleaner** (free, but closed-source) — removes apps and remnants
+
+None of them do everything. You need all three for full coverage, and two of them cost money. Cache Out replaces all three with a single free, open-source app — and adds features none of them have.
+
+---
+
+## How Cache Out compares
+
+| Feature | CleanMyMac | DaisyDisk | AppCleaner | **Cache Out** |
+|---|:---:|:---:|:---:|:---:|
+| Cache & junk scan | ✅ | ❌ | ❌ | ✅ |
+| Browser cache cleanup | ✅ | ❌ | ❌ | ✅ |
+| App uninstall + all remnants | ✅ | ❌ | ✅ | ✅ |
+| Drag-and-drop app uninstall | ❌ | ❌ | ✅ | ✅ |
+| Full-volume disk treemap | ❌ | ✅ | ❌ | ✅ |
+| APFS snapshot manager | ✅ | ✅ | ❌ | ✅ |
+| Large file finder | ✅ | ✅ | ❌ | ✅ |
+| Duplicate file finder (SHA-256) | ✅ | ❌ | ❌ | ✅ |
+| Startup item manager | ✅ | ❌ | ❌ | ✅ |
+| Live CPU / memory / disk status | ✅ | ❌ | ❌ | ✅ |
+| Orphaned support file scanner | ✅ | ❌ | ✅ | ✅ |
+| iOS backup cleanup | ✅ | ❌ | ❌ | ✅ |
+| **Dev artifact purge** | ❌ | ❌ | ❌ | ✅ **exclusive** |
+| Free | ❌ | ❌ | ✅ | ✅ |
+| Open source | ❌ | ❌ | ❌ | ✅ |
+
+The one feature nobody else has: **Dev Purge**. Cache Out scans your project directories and removes `node_modules`, `DerivedData`, `.gradle`, `Pods`, `venv`, `.next`, `.nuxt`, `target`, and `build` folders across every project at once — with recent projects auto-protected so you never accidentally nuke active work.
+
+
+---
+
+## What it does
+
+| Tab | What it does |
+|---|---|
+| **Clean** | Removes caches, logs, browser data, and app junk. Scans `~/Library/Caches`, dev tool caches (npm, pip, Cargo, Gradle, CocoaPods), and dynamically discovers any app cache over 10 MB |
+| **Uninstall** | Fully removes apps and every file they left behind — caches, containers, preferences, support files, and launch agents. Drag an app from Finder or pick from the list |
+| **Leftovers** | Finds support files in `~/Library` left behind by apps you already deleted |
+| **Large Files** | Lists every file over 100 MB in your home folder, sorted by size, with file age |
+| **Duplicates** | Two-pass SHA-256 duplicate finder across your project folders. Streams 4 MB chunks so even 4 GB video files don't OOM |
+| **Analyze** | Full-volume treemap of disk usage with drill-down, volume picker, and per-item Trash |
+| **Snapshots** | Lists and deletes local Time Machine snapshots. Shows purgeable space held by APFS |
+| **Dev Purge** | Clears `node_modules`, `DerivedData`, `.gradle`, `Pods`, `venv`, `.next`, `.nuxt`, `target`, `build` across all projects. Recent projects auto-deselected |
+| **Startup** | View and manage launch agents and login items. Toggle or remove user agents in one click |
+| **Status** | Live CPU, memory, disk, battery, and network — plus a health score and top-process Force Quit |
+
+---
+
+## Requirements
+
+- macOS 26 (Tahoe) or later
+- Xcode 16 or later
+- Full Disk Access (prompted on first launch)
+
+The bundled `mo` CLI is included — no Homebrew install needed.
+
+---
+
+## Build & run
+
+```bash
+git clone https://github.com/apoorv/cache-out
+cd "Cache Out"
+
+# Required after adding or removing any .swift file:
+python3 generate_xcodeproj.py
+
+open "Cache Out.xcodeproj"
+```
+
+Then in Xcode: select the **Cache Out** scheme → set your Team under Signing & Capabilities → ⌘R.
+
+---
+
+## Running tests
+
+```bash
+# In Xcode: select the CacheOutTests scheme → ⌘U
+# Or from the command line:
+xcodebuild test \
+  -project "Cache Out.xcodeproj" \
+  -scheme CacheOutTests \
+  -destination "platform=macOS"
+```
+
+The test suite covers: formatter correctness, whitelist size filtering (BUG-03 regression), clean/purge dry-run safety (no files deleted), selection isolation, duplicate grouping logic, and PurgeScanner artifact detection.
+
+---
+
+## Project scripts
+
+| Script | Purpose | When to run |
+|---|---|---|
+| `generate_xcodeproj.py` | Regenerates `project.pbxproj` deterministically | After adding or removing any `.swift` file |
+| `validate_placeholders.sh` | Blocks archive if Sparkle keys or Team ID are unfilled | Wire into Xcode Build Phases (see Distributing section) |
+
+---
+
+## Permissions
+
+Cache Out requires **Full Disk Access** to scan all cache folders:
+
+> System Settings → Privacy & Security → Full Disk Access → Cache Out ✓
+
+The app requests this on first launch. Without it, some paths under `~/Library` are invisible to the scanner and the permission-denied screen is shown with a direct link to System Settings.
+
+---
+
+## Design
+
+Cache Out targets **macOS 26 Tahoe** with Apple's Liquid Glass design language:
+
+- `NavigationSplitView` + `.listStyle(.sidebar)` → automatic Liquid Glass sidebar
+- All animations use `.spring(response: 0.35, dampingFraction: 0.8)`
+- Only semantic Apple colors — zero hardcoded hex values
+- SF Pro for UI text, SF Mono for paths and sizes
+- Sentence case throughout
+- Respects `accessibilityReduceMotion`, Increase Contrast, dark/light mode, Dynamic Type
+
+---
+
+## Keyboard shortcuts
+
+| Shortcut | Action |
+|---|---|
+| `⌘1` – `⌘0` | Jump to tab |
+| `⌘R` | Scan / rescan current tab |
+| `⌘,` | Settings |
+| `⌘W` | Close window |
+| `⌘Q` | Quit |
+
+
+---
+
+## Special thanks
+
+Cache Out wouldn't be possible without **[Mole](https://github.com/tw93/mole)** (`mo`), a fast, open-source CLI tool by [@tw93](https://github.com/tw93) for cleaning dev artifacts, running purges, and inspecting system state from the terminal.
+
+Mole handles the heavy lifting on the Dev Purge tab — Cache Out wraps it via `MoleService` and exposes its power through a native macOS UI. If you spend time in the terminal, `mo` is worth having on its own.
+
+```bash
+brew install tw93/tap/mole
+```
+
+---
+
+## Project structure
+
+```
+Cache Out/
+├── generate_xcodeproj.py          ← run after any .swift add/remove
+├── validate_placeholders.sh       ← pre-archive guard (wire into Build Phases)
+├── exportOptions.plist            ← notarization workflow (fill YOUR_TEAM_ID)
+├── appcast.xml                    ← Sparkle update feed (fill after first DMG)
+├── Cache Out.xcodeproj/
+├── CacheOut/
+│   ├── MoleApp.swift              ← @main, AppDelegate, NSStatusItem
+│   ├── ContentView.swift          ← NavigationSplitView, 9 ViewModels, toolbar
+│   ├── Info.plist
+│   ├── CacheOut.entitlements
+│   ├── PrivacyInfo.xcprivacy
+│   ├── Models/Models.swift
+│   ├── Resources/mole-src/        ← bundled mo CLI
+│   ├── Services/
+│   │   ├── AppScanner.swift
+│   │   ├── BackgroundCleanScheduler.swift
+│   │   ├── DiskScanner.swift
+│   │   ├── DuplicateScanner.swift
+│   │   ├── MoleService.swift      ← Dev Purge only; wraps mo CLI
+│   │   ├── MoleUpdateService.swift
+│   │   ├── SparkleUpdater.swift
+│   │   ├── StartupScanner.swift
+│   │   └── SystemMonitor.swift
+│   ├── ViewModels/                ← one ViewModel per tab
+│   ├── Views/                     ← one folder per tab
+│   └── Utilities/
+│       ├── CacheOutLogger.swift
+│       ├── Formatters.swift
+│       ├── LaunchAtLogin.swift
+│       └── SidebarLogger.swift    ← debug only (#if DEBUG)
+└── CacheOutTests/
+    ├── CacheOutTests.swift        ← formatters, relativeDaysAgo
+    ├── CleanViewModelTests.swift  ← whitelist filtering, BUG-01/03 regressions
+    ├── DuplicateScannerTests.swift← SHA-256 grouping logic
+    ├── IntegrationTests.swift     ← dry-run safety, selection isolation
+    └── PurgeViewModelTests.swift  ← scan root discovery, artifact detection
+```
+
+---
+
+## License
+
+MIT
