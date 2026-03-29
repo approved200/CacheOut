@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Full Disk Access — required under hardened runtime so the scanner can
+	     read ~/Library/Caches, /private/var/log, and all other TCC-protected
+	     paths. Without this the sandbox silently blocks reads on real machines
+	     even after notarization succeeds. -->
+	<key>com.apple.security.files.all</key>
+	<true/>
+	<key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+	<false/>
+	<key>com.apple.security.cs.disable-library-validation</key>
+	<false/>
+	<key>com.apple.security.network.server</key>
+	<false/>
+</dict>
+</plist>

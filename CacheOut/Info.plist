@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+	<key>CFBundleIconName</key>
+	<string>AppIcon</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0.0</string>
+	<key>CFBundleVersion</key>
+	<string>100</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>Copyright © 2026 Cache Out. MIT License.</string>
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
+	<!-- Privacy usage descriptions — required by App Review and macOS TCC -->
+	<key>NSDesktopFolderUsageDescription</key>
+	<string>Cache Out scans your Desktop folder to find build artifacts and project caches you can safely remove.</string>
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>Cache Out scans your Documents folder to find build artifacts and project caches you can safely remove.</string>
+	<key>NSDownloadsFolderUsageDescription</key>
+	<string>Cache Out reads your Downloads folder to calculate how much space it occupies in the disk usage analysis.</string>
+	<key>NSRemovableVolumesUsageDescription</key>
+	<string>Cache Out reads external volumes to include them in the disk usage analysis on the Analyze tab.</string>
+	<key>NSFileProviderPresenceUsageDescription</key>
+	<string>Cache Out checks for cache and junk files stored by cloud-synced file providers so they can be included in scan results.</string>
+	<key>NSUserNotificationsUsageDescription</key>
+	<string>Cache Out sends a notification when a scheduled background clean or manual clean completes.</string>
+	<!-- ═══════════════════════════════════════════════════════════════════
+	     SPARKLE OTA UPDATE
+	     SUFeedURL:    Points to apoorv/cache-out on GitHub. Appcast.xml must
+	                   be committed and pushed to main before Sparkle can find it.
+	     SUPublicEDKey: Generated 2026-03-25. Private key is stored in macOS
+	                   Keychain (label: "Sparkle Key for Cache Out"). 
+	                   NEVER commit the private key.
+	     ═══════════════════════════════════════════════════════════════════ -->
+	<key>SUFeedURL</key>
+	<string>https://raw.githubusercontent.com/apoorv/cache-out/main/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>/AEY9mlQoA0Ndx9vht4QpfYm/TsgkBkUTzXWio333Dk=</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+</dict>
+</plist>

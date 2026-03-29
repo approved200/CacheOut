@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  exportOptions.plist — used by xcodebuild -exportArchive for direct distribution.
+	  Targets Developer ID (outside Mac App Store) via notarization.
+
+	  ┌─────────────────────────────────────────────────────────────────────┐
+	  │  BEFORE YOU ARCHIVE — fill in these two values:                     │
+	  │  1. teamID below → your 10-char Apple Developer Team ID             │
+	  │     Find it: Xcode → Settings → Accounts → Team ID column           │
+	  │  2. Replace APPLE_ID and TEAM_ID in the notarytool commands below   │
+	  └─────────────────────────────────────────────────────────────────────┘
+
+	  FULL 8-STEP RELEASE WORKFLOW:
+
+	  1. Archive:
+	     xcodebuild archive \
+	       -project "Cache Out.xcodeproj" \
+	       -scheme "Cache Out" \
+	       -configuration Release \
+	       -archivePath build/CacheOut.xcarchive
+
+	  2. Export + sign:
+	     xcodebuild -exportArchive \
+	       -archivePath build/CacheOut.xcarchive \
+	       -exportPath build/export \
+	       -exportOptionsPlist exportOptions.plist
+
+	  3. Notarize the .app:
+	     xcrun notarytool submit "build/export/Cache Out.app" \
+	       --apple-id "your@apple.id" \
+	       --team-id "YOUR_TEAM_ID" \
+	       --password "@keychain:AC_PASSWORD" \
+	       --wait
+
+	  4. Staple the .app:
+	     xcrun stapler staple "build/export/Cache Out.app"
+
+	  5. Create DMG (requires: brew install create-dmg):
+	     create-dmg \
+	       --volname "Cache Out" \
+	       --window-size 540 380 \
+	       --icon-size 128 \
+	       --app-drop-link 380 185 \
+	       "CacheOut-1.0.0.dmg" \
+	       "build/export/Cache Out.app"
+
+	  6. Sign the DMG:
+	     codesign --sign "Developer ID Application: YOUR NAME (YOUR_TEAM_ID)" \
+	       CacheOut-1.0.0.dmg
+
+	  7. Notarize the DMG:
+	     xcrun notarytool submit CacheOut-1.0.0.dmg \
+	       --apple-id "your@apple.id" \
+	       --team-id "YOUR_TEAM_ID" \
+	       --password "@keychain:AC_PASSWORD" \
+	       --wait
+
+	  8. Staple the DMG:
+	     xcrun stapler staple CacheOut-1.0.0.dmg
+
+	  9. Sign with Sparkle sign_update (private key read from Keychain automatically):
+	     ~/Library/Developer/Xcode/DerivedData/Cache_Out-*/SourcePackages/artifacts/sparkle/Sparkle/bin/sign_update \
+	       CacheOut-1.0.0.dmg
+	     → Copy the printed edSignature and byte size into appcast.xml, then push to GitHub.
+	-->
+
+	<key>method</key>
+	<string>developer-id</string>
+
+	<!--
+	  Replace with your actual Team ID (10-character string from developer.apple.com).
+	  Find it: Xcode → Settings → Accounts → your Apple ID → Team ID column.
+	-->
+	<key>teamID</key>
+	<string>YOUR_TEAM_ID</string>
+
+	<key>signingStyle</key>
+	<string>automatic</string>
+
+	<key>hardened runtime</key>
+	<true/>
+
+	<key>stripSwiftSymbols</key>
+	<true/>
+
+	<key>uploadBitcode</key>
+	<false/>
+
+	<key>compileBitcode</key>
+	<false/>
+
+	<!--
+	  Set to true during development/testing to skip notarization wait.
+	  Must be false (or omitted) for production builds.
+	-->
+	<key>notarize</key>
+	<false/>
+</dict>
+</plist>

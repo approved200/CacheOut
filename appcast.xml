@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  appcast.xml — Sparkle update feed for Cache Out.
+  Host this file at the URL specified in Info.plist → SUFeedURL.
+
+  WORKFLOW FOR EACH RELEASE:
+  1. Build and notarize the new .dmg (see exportOptions.plist for steps).
+  2. Sign the .dmg with Sparkle's sign_update tool (already built — no compile needed):
+       ~/Library/Developer/Xcode/DerivedData/Cache_Out-fdeicjpssudvtmgodankmyfeecjv/SourcePackages/artifacts/sparkle/Sparkle/bin/sign_update \
+         CacheOut-1.x.x.dmg
+     The private key is in your macOS Keychain (saved automatically by generate_keys).
+     This prints an edSignature value — paste it below.
+  3. Get the file length in bytes:
+       stat -f%z CacheOut-1.x.x.dmg
+  4. Add a new <item> block at the top of the <channel> (newest first).
+  5. Commit and push. Sparkle checks this URL on every launch.
+
+  KEY FIELDS:
+  - sparkle:version      → CFBundleVersion (integer build number, e.g. 101)
+  - sparkle:shortVersionString → CFBundleShortVersionString (e.g. 1.0.1)
+  - sparkle:minimumSystemVersion → must match your deployment target
+  - length               → exact byte size of the .dmg
+  - sparkle:edSignature  → EdDSA signature from sign_update
+-->
+<rss version="2.0"
+     xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle"
+     xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <title>Cache Out</title>
+    <link>https://github.com/apoorv/cache-out</link>
+    <description>Cache Out release feed</description>
+    <language>en</language>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         LATEST RELEASE — add new items above older ones
+         ═══════════════════════════════════════════════════════════ -->
+    <item>
+      <title>Cache Out 1.0.0</title>
+      <sparkle:releaseNotesLink>
+        https://github.com/apoorv/cache-out/releases/tag/v1.0.0
+      </sparkle:releaseNotesLink>
+      <pubDate>Tue, 25 Mar 2026 00:00:00 +0000</pubDate>
+      <enclosure
+        url="https://github.com/apoorv/cache-out/releases/download/v1.0.0/CacheOut-1.0.0.dmg"
+        sparkle:version="100"
+        sparkle:shortVersionString="1.0.0"
+        sparkle:minimumSystemVersion="26.0"
+        type="application/octet-stream"
+        length="REPLACE_WITH_DMG_BYTE_SIZE"
+        sparkle:edSignature="REPLACE_WITH_ED_SIGNATURE" />
+    </item>
+
+  </channel>
+</rss>
