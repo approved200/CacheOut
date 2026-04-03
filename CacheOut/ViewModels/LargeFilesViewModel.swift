@@ -72,6 +72,9 @@ class LargeFilesViewModel: ObservableObject {
     @Published var isScanning = false
     @Published var scanError: String? = nil
     @Published var filesScanned = 0
+    /// True when the scan found more than 500 files and results were capped.
+    /// The view uses this to show a "Showing top 500 by size" notice.
+    @Published var isTruncated = false
     /// Active category filters — all on by default. Empty set = show all.
     @Published var activeCategories: Set<FileCategory> = []
     /// Custom scan roots added via the "Scan this folder…" button in-view.
@@ -122,6 +125,7 @@ class LargeFilesViewModel: ObservableObject {
         }.value
 
         items = found
+        isTruncated = found.count >= 500
         filesScanned = found.count
         lastScanned = Date()
         isScanning = false

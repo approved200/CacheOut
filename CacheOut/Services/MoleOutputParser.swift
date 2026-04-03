@@ -4,8 +4,12 @@ import Foundation
 // ANSI escape codes are stripped before parsing.
 enum MoleOutputParser {
 
-    private static let ansiRegex = try! NSRegularExpression(
-        pattern: "\\x1B\\[[0-9;]*[mGKHFJ]")
+    // ANSI escape code regex — compiled once at startup.
+    // NSRegularExpression is Sendable in Swift 6, so no isolation annotation needed.
+    // try? with a fallback avoids a force-try so a future pattern change can't crash.
+    private static let ansiRegex: NSRegularExpression =
+        (try? NSRegularExpression(pattern: "\\x1B\\[[0-9;]*[mGKHFJ]"))
+            ?? NSRegularExpression()
 
     static func strip(_ s: String) -> String {
         let r = NSRange(s.startIndex..., in: s)

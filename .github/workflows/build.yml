@@ -1,0 +1,78 @@
+name: Build & Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    name: Build & Test (macOS)
+    # macos-26 GitHub Actions runner is not yet available.
+    # macos-15 (Sequoia) is used for CI until Apple releases a Tahoe runner.
+    # The app targets macOS 26 for Liquid Glass — local builds on Tahoe are required
+    # to see the full design. CI validates Swift 6 correctness and test coverage only.
+    runs-on: macos-15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+
+      - name: Regenerate Xcode project
+        run: |
+          if [ -f generate_xcodeproj.py ]; then
+            python3 generate_xcodeproj.py
+          fi
+
+      - name: Build
+        run: |
+          xcodebuild build \
+            -project "Cache Out.xcodeproj" \
+            -scheme "Cache Out" \
+            -configuration Debug \
+            -destination "platform=macOS" \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            | xcpretty || xcodebuild build \
+              -project "Cache Out.xcodeproj" \
+              -scheme "Cache Out" \
+              -configuration Debug \
+              -destination "platform=macOS" \
+              CODE_SIGN_IDENTITY="" \
+              CODE_SIGNING_REQUIRED=NO \
+              CODE_SIGNING_ALLOWED=NO
+
+      - name: Test
+        run: |
+          xcodebuild test \
+            -project "Cache Out.xcodeproj" \
+            -scheme "CacheOutTests" \
+            -destination "platform=macOS" \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            | xcpretty || xcodebuild test \
+              -project "Cache Out.xcodeproj" \
+              -scheme "CacheOutTests" \
+              -destination "platform=macOS" \
+              CODE_SIGN_IDENTITY="" \
+              CODE_SIGNING_REQUIRED=NO \
+              CODE_SIGNING_ALLOWED=NO
+
+      - name: Check for unfilled placeholders
+        if: github.ref == 'refs/heads/main'
+        run: |
+          WARNINGS=0
+          if grep -q "YOUR_TEAM_ID" exportOptions.plist; then
+            echo "⚠️  exportOptions.plist: YOUR_TEAM_ID not filled (required before archiving)"
+            WARNINGS=$((WARNINGS+1))
+          fi
+          if grep -q "REPLACE_WITH_ED_SIGNATURE" appcast.xml; then
+            echo "⚠️  appcast.xml: Sparkle signature placeholder not filled (expected before first release)"
+          fi
+          echo "Placeholder check complete ($WARNINGS critical warnings)"

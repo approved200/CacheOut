@@ -36,7 +36,7 @@ clean_ds_store_tree() {
         total_bytes=$((total_bytes + size))
         file_count=$((file_count + 1))
         if [[ "$DRY_RUN" != "true" ]]; then
-            rm -f "$ds_file" 2> /dev/null || true
+            safe_remove "$ds_file" true 2> /dev/null || true
         fi
         if [[ $file_count -ge $MOLE_MAX_DS_STORE_FILES ]]; then
             break
@@ -48,12 +48,14 @@ clean_ds_store_tree() {
     if [[ $file_count -gt 0 ]]; then
         local size_human
         size_human=$(bytes_to_human "$total_bytes")
+        local size_kb=$(((total_bytes + 1023) / 1024))
         if [[ "$DRY_RUN" == "true" ]]; then
             echo -e "  ${YELLOW}${ICON_DRY_RUN}${NC} $label${NC}, ${YELLOW}$file_count files, $size_human dry${NC}"
         else
-            echo -e "  ${GREEN}${ICON_SUCCESS}${NC} $label${NC}, ${GREEN}$file_count files, $size_human${NC}"
+            local line_color
+            line_color=$(cleanup_result_color_kb "$size_kb")
+            echo -e "  ${line_color}${ICON_SUCCESS}${NC} $label${NC}, ${line_color}$file_count files, $size_human${NC}"
         fi
-        local size_kb=$(((total_bytes + 1023) / 1024))
         files_cleaned=$((files_cleaned + file_count))
         total_size_cleaned=$((total_size_cleaned + size_kb))
         total_items=$((total_items + 1))
@@ -221,7 +223,8 @@ is_bundle_orphaned() {
     if [[ -n "$bundle_id" ]] && [[ "$bundle_id" =~ ^[a-zA-Z0-9._-]+$ ]] && [[ ${#bundle_id} -ge 5 ]]; then
         # Initialize cache file if needed
         if [[ -z "$ORPHAN_MDFIND_CACHE_FILE" ]]; then
-            ORPHAN_MDFIND_CACHE_FILE=$(mktemp "${TMPDIR:-/tmp}/mole_mdfind_cache.XXXXXX")
+            ensure_mole_temp_root
+            ORPHAN_MDFIND_CACHE_FILE=$(mktemp "$MOLE_RESOLVED_TMPDIR/mole_mdfind_cache.XXXXXX")
             register_temp_file "$ORPHAN_MDFIND_CACHE_FILE"
         fi
 
@@ -235,7 +238,7 @@ is_bundle_orphaned() {
         else
             # Query mdfind with strict timeout (2 seconds max)
             local app_exists
-            app_exists=$(run_with_timeout 2 mdfind "kMDItemCFBundleIdentifier == '$bundle_id'" 2> /dev/null | head -1 || echo "")
+            app_exists=$(run_with_timeout 5 mdfind "kMDItemCFBundleIdentifier == '$bundle_id'" 2> /dev/null | head -1 || echo "")
             if [[ -n "$app_exists" ]]; then
                 echo "FOUND:$bundle_id" >> "$ORPHAN_MDFIND_CACHE_FILE"
                 return 1
@@ -277,7 +280,8 @@ is_claude_vm_bundle_orphaned() {
     fi
 
     if [[ -z "$ORPHAN_MDFIND_CACHE_FILE" ]]; then
-        ORPHAN_MDFIND_CACHE_FILE=$(mktemp "${TMPDIR:-/tmp}/mole_mdfind_cache.XXXXXX")
+        ensure_mole_temp_root
+        ORPHAN_MDFIND_CACHE_FILE=$(mktemp "$MOLE_RESOLVED_TMPDIR/mole_mdfind_cache.XXXXXX")
         register_temp_file "$ORPHAN_MDFIND_CACHE_FILE"
     fi
 
@@ -286,7 +290,7 @@ is_claude_vm_bundle_orphaned() {
     fi
     if ! grep -Fxq "NOTFOUND:$claude_bundle_id" "$ORPHAN_MDFIND_CACHE_FILE" 2> /dev/null; then
         local app_exists
-        app_exists=$(run_with_timeout 2 mdfind "kMDItemCFBundleIdentifier == '$claude_bundle_id'" 2> /dev/null | head -1 || echo "")
+        app_exists=$(run_with_timeout 5 mdfind "kMDItemCFBundleIdentifier == '$claude_bundle_id'" 2> /dev/null | head -1 || echo "")
         if [[ -n "$app_exists" ]]; then
             echo "FOUND:$claude_bundle_id" >> "$ORPHAN_MDFIND_CACHE_FILE"
             return 1
@@ -314,16 +318,21 @@ clean_orphaned_app_data() {
     local total_orphaned_kb=0
     start_section_spinner "Scanning orphaned app resources..."
 
-    local claude_vm_bundle="$HOME/Library/Application Support/Claude/vm_bundles/claudevm.bundle"
-    if is_claude_vm_bundle_orphaned "$claude_vm_bundle" "$installed_bundles"; then
-        local claude_vm_size_kb
-        claude_vm_size_kb=$(get_path_size_kb "$claude_vm_bundle")
-        if [[ -n "$claude_vm_size_kb" && "$claude_vm_size_kb" != "0" ]]; then
-            if safe_clean "$claude_vm_bundle" "Orphaned Claude workspace VM"; then
-                orphaned_count=$((orphaned_count + 1))
-                total_orphaned_kb=$((total_orphaned_kb + claude_vm_size_kb))
+    # Dynamically discover Claude VM bundles (path may vary across versions).
+    local claude_support_dir="$HOME/Library/Application Support/Claude"
+    if [[ -d "$claude_support_dir" ]]; then
+        while IFS= read -r -d '' claude_vm_bundle; do
+            if is_claude_vm_bundle_orphaned "$claude_vm_bundle" "$installed_bundles"; then
+                local claude_vm_size_kb
+                claude_vm_size_kb=$(get_path_size_kb "$claude_vm_bundle")
+                if [[ -n "$claude_vm_size_kb" && "$claude_vm_size_kb" != "0" ]]; then
+                    if safe_clean "$claude_vm_bundle" "Orphaned Claude workspace VM"; then
+                        orphaned_count=$((orphaned_count + 1))
+                        total_orphaned_kb=$((total_orphaned_kb + claude_vm_size_kb))
+                    fi
+                fi
             fi
-        fi
+        done < <(find "$claude_support_dir" -maxdepth 3 -name "*.bundle" -type d -print0 2> /dev/null || true)
     fi
 
     # CRITICAL: NEVER add LaunchAgents or LaunchDaemons (breaks login items/startup apps).
@@ -449,7 +458,8 @@ clean_orphaned_system_services() {
 
         if [[ -n "$bundle_id" ]] && [[ "$bundle_id" =~ ^[a-zA-Z0-9._-]+$ ]] && [[ ${#bundle_id} -ge 5 ]]; then
             if [[ -z "$mdfind_cache_file" ]]; then
-                mdfind_cache_file=$(mktemp "${TMPDIR:-/tmp}/mole_mdfind_cache.XXXXXX")
+                ensure_mole_temp_root
+                mdfind_cache_file=$(mktemp "$MOLE_RESOLVED_TMPDIR/mole_mdfind_cache.XXXXXX")
                 register_temp_file "$mdfind_cache_file"
             fi
 
@@ -458,7 +468,7 @@ clean_orphaned_system_services() {
             fi
             if ! grep -Fxq "NOTFOUND:$bundle_id" "$mdfind_cache_file" 2> /dev/null; then
                 local app_found
-                app_found=$(run_with_timeout 2 mdfind "kMDItemCFBundleIdentifier == '$bundle_id'" 2> /dev/null | head -1 || echo "")
+                app_found=$(run_with_timeout 5 mdfind "kMDItemCFBundleIdentifier == '$bundle_id'" 2> /dev/null | head -1 || echo "")
                 if [[ -n "$app_found" ]]; then
                     echo "FOUND:$bundle_id" >> "$mdfind_cache_file"
                     return 0
@@ -574,7 +584,7 @@ clean_orphaned_system_services() {
             local filename
             filename=$(basename "$orphan_file")
 
-            if [[ "${MOLE_DRY_RUN:-0}" == "1" ]]; then
+            if [[ "$DRY_RUN" == "true" ]]; then
                 debug_log "[DRY RUN] Would remove orphaned service: $orphan_file"
             else
                 # Unload if it's a LaunchDaemon/LaunchAgent

@@ -99,7 +99,7 @@ discover_project_dirs() {
         fi
     done
 
-    printf '%s\n' "${discovered[@]}" | sort -u
+    printf '%s\n' "${discovered[@]+"${discovered[@]}"}" | sort -u
 }
 
 # Prepare purge config directory/file ownership when possible.
@@ -472,8 +472,12 @@ scan_purge_targets() {
             # Check if fd actually found anything - if empty, fallback to find
             if [[ -s "$output_file.raw" ]]; then
                 debug_log "Using fd for scanning (found results)"
-                use_find=false
                 process_scan_results "$output_file.raw"
+                if [[ -s "$output_file" ]]; then
+                    use_find=false
+                else
+                    debug_log "fd results became empty after filtering, falling back to find"
+                fi
             else
                 debug_log "fd returned empty results, falling back to find"
                 rm -f "$output_file.raw"
@@ -1465,6 +1469,7 @@ clean_project_artifacts() {
         local -a sorted_item_sizes=()
         local -a sorted_item_size_unknown_flags=()
         local -a sorted_item_recent_flags=()
+        local -a sorted_item_display_paths=()
 
         for idx in "${sorted_indices[@]}"; do
             sorted_menu_options+=("${menu_options[idx]}")
@@ -1472,6 +1477,7 @@ clean_project_artifacts() {
             sorted_item_sizes+=("${item_sizes[idx]}")
             sorted_item_size_unknown_flags+=("${item_size_unknown_flags[idx]}")
             sorted_item_recent_flags+=("${item_recent_flags[idx]}")
+            sorted_item_display_paths+=("${item_display_paths[idx]}")
         done
 
         # Replace original arrays with sorted versions
@@ -1480,6 +1486,7 @@ clean_project_artifacts() {
         item_sizes=("${sorted_item_sizes[@]}")
         item_size_unknown_flags=("${sorted_item_size_unknown_flags[@]}")
         item_recent_flags=("${sorted_item_recent_flags[@]}")
+        item_display_paths=("${sorted_item_display_paths[@]}")
     fi
     if [[ -t 1 ]]; then
         stop_inline_spinner

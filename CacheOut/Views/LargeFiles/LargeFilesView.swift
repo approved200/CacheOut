@@ -126,13 +126,19 @@ struct LargeFilesView: View {
             HStack {
                 let shown = viewModel.filteredItems.count
                 let total = viewModel.items.count
-                if shown == total {
-                    Text("\(total) files over \(thresholdLabel)")
-                } else {
-                    Text("\(shown) of \(total) files · filtered")
+                VStack(alignment: .leading, spacing: 1) {
+                    if shown == total {
+                        Text("\(total) files over \(thresholdLabel)")
+                    } else {
+                        Text("\(shown) of \(total) files · filtered")
+                    }
+                    if viewModel.isTruncated {
+                        Text("Showing top 500 by size — narrow the scan to see more")
+                            .font(.system(size: 10))
+                            .foregroundColor(Color(nsColor: .tertiaryLabelColor))
+                    }
                 }
                 Spacer()
-                // Custom roots badge
                 if !viewModel.customScanRoots.isEmpty {
                     Button {
                         viewModel.customScanRoots = []

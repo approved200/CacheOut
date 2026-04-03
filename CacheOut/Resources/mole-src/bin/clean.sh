@@ -30,9 +30,28 @@ IS_M_SERIES=$([[ "$(uname -m)" == "arm64" ]] && echo "true" || echo "false")
 EXPORT_LIST_FILE="$HOME/.config/mole/clean-list.txt"
 CURRENT_SECTION=""
 readonly PROTECTED_SW_DOMAINS=(
+    # Web editors
     "capcut.com"
     "photopea.com"
     "pixlr.com"
+    # Google Workspace (offline mode)
+    "docs.google.com"
+    "sheets.google.com"
+    "slides.google.com"
+    "drive.google.com"
+    "mail.google.com"
+    # Code platforms (offline/PWA)
+    "github.com"
+    "gitlab.com"
+    "codepen.io"
+    "codesandbox.io"
+    "replit.com"
+    "stackblitz.com"
+    # Collaboration tools (offline/PWA)
+    "notion.so"
+    "figma.com"
+    "linear.app"
+    "excalidraw.com"
 )
 
 declare -a WHITELIST_PATTERNS=()
@@ -203,6 +222,21 @@ end_section() {
 # shellcheck disable=SC2329
 normalize_paths_for_cleanup() {
     local -a input_paths=("$@")
+
+    # Fast path for large batches: O(n log n) via sort|awk instead of O(n²) bash loops.
+    # Lex sort guarantees every parent path precedes its children, so a single-pass
+    # awk can filter child paths by tracking only the last kept path.
+    if [[ ${#input_paths[@]} -gt 500 ]]; then
+        printf '%s\n' "${input_paths[@]}" |
+            awk '{sub(/\/$/, ""); if ($0 != "") print}' |
+            LC_ALL=C sort -u |
+            awk 'BEGIN { last = "" } {
+                if (last != "" && substr($0, 1, length(last) + 1) == last "/") next
+                last = $0; print
+            }'
+        return
+    fi
+
     local -a unique_paths=()
 
     for path in "${input_paths[@]}"; do
@@ -711,7 +745,9 @@ safe_clean() {
                 done
             fi
         else
-            echo -e "  ${GREEN}${ICON_SUCCESS}${NC} $label${NC}, ${GREEN}$size_human${NC}"
+            local line_color
+            line_color=$(cleanup_result_color_kb "$total_size_kb")
+            echo -e "  ${line_color}${ICON_SUCCESS}${NC} $label${NC}, ${line_color}$size_human${NC}"
         fi
         files_cleaned=$((files_cleaned + total_count))
         total_size_cleaned=$((total_size_cleaned + total_size_kb))
@@ -1103,9 +1139,9 @@ perform_cleanup() {
 
             summary_details+=("$summary_line")
 
-            # Movie comparison only if >= 1GB (1048576 KB)
-            if ((total_size_cleaned >= 1048576)); then
-                local freed_gb=$((total_size_cleaned / 1048576))
+            # Movie comparison only if >= 1GB
+            if ((total_size_cleaned >= MOLE_ONE_GIB_KB)); then
+                local freed_gb=$((total_size_cleaned / MOLE_ONE_GIB_KB))
                 local movies=$((freed_gb * 10 / 45))
 
                 if [[ $movies -gt 0 ]]; then

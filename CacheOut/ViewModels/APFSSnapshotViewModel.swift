@@ -172,6 +172,11 @@ enum APFSSnapshotScanner {
         return f.date(from: datePart)
     }
 
+    // CRITICAL: pipes are drained BEFORE waitUntilExit to prevent deadlock.
+    // If the process writes more than ~65 KB to stdout/stderr and we wait first,
+    // the pipe buffer fills, the child blocks on write, and waitUntilExit hangs.
+    // terminationHandler has the same bug — the handler fires after the process
+    // exits, but the pipe buffer may already be full before exit. Always read first.
     private static func run(_ args: [String]) async -> String {
         return await withCheckedContinuation { continuation in
             let task = Process()
@@ -182,19 +187,19 @@ enum APFSSnapshotScanner {
             task.standardOutput = pipe
             task.standardError  = errPipe
 
-            task.terminationHandler = { _ in
-                let out = pipe.fileHandleForReading.readDataToEndOfFile()
-                let err = errPipe.fileHandleForReading.readDataToEndOfFile()
-                let errStr = String(data: err, encoding: .utf8) ?? ""
-                let outStr = String(data: out, encoding: .utf8) ?? ""
-                let finalStr = errStr.isEmpty ? outStr : errStr + outStr
-                continuation.resume(returning: finalStr)
+            do { try task.run() } catch {
+                continuation.resume(returning: "")
+                return
             }
 
-            do {
-                try task.run()
-            } catch {
-                continuation.resume(returning: "")
+            // Read pipes on a background thread FIRST, then wait for exit.
+            DispatchQueue.global(qos: .utility).async {
+                let outData = pipe.fileHandleForReading.readDataToEndOfFile()
+                let errData = errPipe.fileHandleForReading.readDataToEndOfFile()
+                task.waitUntilExit()
+                let outStr = String(data: outData, encoding: .utf8) ?? ""
+                let errStr = String(data: errData, encoding: .utf8) ?? ""
+                continuation.resume(returning: errStr.isEmpty ? outStr : errStr + outStr)
             }
         }
     }

@@ -21,6 +21,7 @@ source "$SCRIPT_DIR/lib/optimize/maintenance.sh"
 source "$SCRIPT_DIR/lib/optimize/tasks.sh"
 source "$SCRIPT_DIR/lib/check/health_json.sh"
 source "$SCRIPT_DIR/lib/check/all.sh"
+source "$SCRIPT_DIR/lib/check/dev_environment.sh"
 source "$SCRIPT_DIR/lib/manage/whitelist.sh"
 
 print_header() {
@@ -65,8 +66,14 @@ parse_optimization_items() {
 
         [[ "$in_array" != "true" ]] && continue
 
-        # Count braces to track object boundaries
-        if [[ "$line" == *'{'* ]]; then
+        # Strip quoted strings before counting braces to handle braces inside string values
+        # e.g., "description": "Use {braces} here" should not affect brace counting
+        local line_for_counting
+        # shellcheck disable=SC2001
+        line_for_counting=$(echo "$line" | sed 's/"[^"]*"//g')
+
+        # Count braces to track object boundaries (using stripped line)
+        if [[ "$line_for_counting" == *'{'* ]]; then
             ((brace_count++))
         fi
 
@@ -74,7 +81,7 @@ parse_optimization_items() {
             current_item+="$line"
         fi
 
-        if [[ "$line" == *'}'* ]]; then
+        if [[ "$line_for_counting" == *'}'* ]]; then
             ((brace_count--))
             if ((brace_count == 0)) && [[ -n "$current_item" ]]; then
                 # Extract fields from the collected item
@@ -89,8 +96,8 @@ parse_optimization_items() {
             fi
         fi
 
-        # End of array
-        [[ "$line" == *']'* ]] && ((brace_count == 0)) && break
+        # End of array (using stripped line)
+        [[ "$line_for_counting" == *']'* ]] && ((brace_count == 0)) && break
     done <<< "$json"
 }
 
@@ -121,6 +128,8 @@ run_system_checks() {
 
     check_all_config
     echo ""
+
+    check_all_dev_environment
 
     show_suggestions
 
@@ -312,11 +321,8 @@ collect_security_fix_actions() {
             SECURITY_FIXES+=("firewall|Enable macOS firewall")
         fi
     fi
-    if [[ "${GATEKEEPER_DISABLED:-}" == "true" ]]; then
-        if ! is_whitelisted "gatekeeper"; then
-            SECURITY_FIXES+=("gatekeeper|Enable Gatekeeper, app download protection")
-        fi
-    fi
+    # Gatekeeper state is intentionally user-managed. Optimize may report it,
+    # but it must not change the user's "Anywhere" preference.
     if touchid_supported && ! touchid_configured; then
         if ! is_whitelisted "check_touchid"; then
             SECURITY_FIXES+=("touchid|Enable Touch ID for sudo")
@@ -370,16 +376,6 @@ apply_firewall_fix() {
     return 1
 }
 
-apply_gatekeeper_fix() {
-    if sudo spctl --master-enable 2> /dev/null; then
-        echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Gatekeeper enabled"
-        GATEKEEPER_DISABLED=false
-        return 0
-    fi
-    echo -e "  ${GRAY}${ICON_WARNING}${NC} Failed to enable Gatekeeper"
-    return 1
-}
-
 apply_touchid_fix() {
     if "$SCRIPT_DIR/bin/touchid.sh" enable; then
         return 0
@@ -399,9 +395,6 @@ perform_security_fixes() {
         case "$action" in
             firewall)
                 apply_firewall_fix && ((applied++))
-                ;;
-            gatekeeper)
-                apply_gatekeeper_fix && ((applied++))
                 ;;
             touchid)
                 apply_touchid_fix && ((applied++))

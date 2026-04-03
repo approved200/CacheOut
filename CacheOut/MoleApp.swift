@@ -98,6 +98,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             "purgeScanDirs":       "",
             // Advanced
             "dryRunMode":          false,
+            "debugLogging":        false,
             // Duplicates
             "duplicatesMinSizeKB":    1024,
             "duplicatesExcludedDirs": "",

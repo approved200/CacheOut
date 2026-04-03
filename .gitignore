@@ -1,0 +1,45 @@
+# Xcode
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.xccheckout
+*.moved-aside
+*.hmap
+*.ipa
+*.xcarchive
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Logs (debug only — never commit)
+Logs/
+
+# Sparkle private key — NEVER commit
+*.pem
+*.p8
+sparkle_private_key*
+edkey_private*
+
+# Xcode SPM caches
+.swiftpm/
+Package.resolved
+
+# CocoaPods (if ever added)
+Pods/
+Podfile.lock
+
+# Build outputs
+*.dmg
+*.pkg
+export/
+build/
+
+# Generated python cache
+__pycache__/
+*.pyc

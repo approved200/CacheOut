@@ -14,7 +14,8 @@ struct DiskNode: Identifiable {
 actor DiskScanner {
 
     // Returns up to `limit` largest visible children of `path`, sorted by size desc.
-    // Default limit of 20 is enough for ~/Library. Pass limit: 50 for full-volume scans.
+    // At volume root we pass limit: 0 (unlimited) to match DaisyDisk behaviour — show all
+    // top-level directories. For drilled-in subdirectory views, limit: 20 is enough.
     func topChildren(of path: String, limit: Int = 20) async -> [DiskNode] {
         await Task.detached(priority: .userInitiated) {
             DiskScanner.scanChildren(of: path, limit: limit)
@@ -32,8 +33,9 @@ actor DiskScanner {
             nodes.append(DiskNode(name: entry, path: full, size: sz,
                                   ageDays: modAge(path: full, fm: fm)))
         }
-        // Top `limit` — configurable so full-volume scans (/) can show more
-        return nodes.sorted { $0.size > $1.size }.prefix(limit).map { $0 }
+        let sorted = nodes.sorted { $0.size > $1.size }
+        // limit == 0 means unlimited (used at volume root)
+        return limit > 0 ? Array(sorted.prefix(limit)) : sorted
     }
 
     private nonisolated static func allocatedSize(path: String, fm: FileManager) -> Int64 {

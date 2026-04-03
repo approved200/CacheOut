@@ -49,9 +49,8 @@ class AnalyzeViewModel: ObservableObject {
                   Date().timeIntervalSince(last) > staleDuration {
             let path = currentPath
             isScanning = true
-            let isVolumeRoot = (path as NSString).pathComponents.count <= 3
-            let limit = isVolumeRoot ? 50 : 20
-            let fresh = await scanner.topChildren(of: path, limit: limit)
+            // Unlimited at all levels — see scan() comment above
+            let fresh = await scanner.topChildren(of: path, limit: 0)
             nodes = fresh
             lastScanned = Date()
             isScanning = false
@@ -65,7 +64,17 @@ class AnalyzeViewModel: ObservableObject {
     }
 
     func scan(_ path: String) async {
-        let hasAccess = (try? FileManager.default.contentsOfDirectory(atPath: NSHomeDirectory() + "/Library/Caches")) != nil
+        // TRUE Full Disk Access probe: try to list ~/Library/Caches via the URL
+        // API (same TCC gate the scanner itself uses). A plain fileExists() call
+        // succeeds even when FDA is denied; contentsOfDirectory triggers TCC.
+        let fm = FileManager.default
+        let libraryURL = fm.urls(for: .libraryDirectory, in: .userDomainMask).first
+        let cachesURL  = libraryURL?.appendingPathComponent("Caches")
+        let hasAccess  = cachesURL.flatMap {
+            try? fm.contentsOfDirectory(at: $0,
+                                        includingPropertiesForKeys: nil,
+                                        options: .skipsHiddenFiles)
+        } != nil
         guard hasAccess else {
             permissionDenied = true
             isScanning = false
@@ -73,10 +82,10 @@ class AnalyzeViewModel: ObservableObject {
         }
         permissionDenied = false
         isScanning = true
-        // Use a larger cap at the volume root so full-disk scans show enough detail
-        let isVolumeRoot = (path as NSString).pathComponents.count <= 3
-        let limit = isVolumeRoot ? 50 : 20
-        nodes = await scanner.topChildren(of: path, limit: limit)
+        // Pass limit 0 (unlimited) at all levels — DiskScanner only reads direct children
+        // of `path` (one level deep, not recursive) so even folders with 200+ entries
+        // are fast. Capping at 20 when drilled in was hiding items vs DaisyDisk.
+        nodes = await scanner.topChildren(of: path, limit: 0)
         lastScanned = Date()
         isScanning = false
     }

@@ -48,6 +48,17 @@ class DuplicatesViewModel: ObservableObject {
         }
     }
 
+    // MARK: — Cancel in-flight scan
+    func cancelScan() {
+        scanTask?.cancel()
+        scanTask = nil
+        if isScanning {
+            isScanning = false
+            phaseLabel = ""
+            progress = 0
+        }
+    }
+
     // MARK: — Scan
     func scan(roots: [String]) async {
         guard !isScanning else { return }
@@ -73,16 +84,26 @@ class DuplicatesViewModel: ObservableObject {
 
         let progressActor = ProgressReporter(owner: self)
 
-        let result = await Task.detached(priority: .userInitiated) { [roots, minBytes, excludedDirs] in
+        let innerTask = Task.detached(priority: .userInitiated) { [roots, minBytes, excludedDirs] in
             DuplicateScanner.findDuplicates(in: roots, minSize: minBytes, excluding: excludedDirs) { p in
                 Task { @MainActor in progressActor.report(p) }
             }
-        }.value
-
-        groups = result
-        lastScanned = Date()
-        isScanning = false
-        phaseLabel = ""
+        }
+        // Store so cancelScan() / onDisappear can terminate mid-scan
+        scanTask = Task {
+            let result = await innerTask.value
+            groups = result
+            lastScanned = Date()
+            isScanning = false
+            phaseLabel = ""
+        }
+        await scanTask?.value
+        // If we were cancelled mid-flight, reset scanning state cleanly
+        if Task.isCancelled {
+            innerTask.cancel()
+            isScanning = false
+            phaseLabel = ""
+        }
     }
 
     // MARK: — Remove duplicates keeping one chosen file

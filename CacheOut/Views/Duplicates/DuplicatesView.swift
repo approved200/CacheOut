@@ -77,6 +77,12 @@ struct DuplicatesView: View {
             Text("\(Int(viewModel.progress * 100))% complete")
                 .font(.system(size: 11))
                 .foregroundColor(Color(nsColor: .tertiaryLabelColor))
+            Button("Cancel") {
+                viewModel.cancelScan()
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .padding(.top, 4)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

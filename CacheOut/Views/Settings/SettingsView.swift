@@ -612,7 +612,8 @@ struct LargeFilesSettingsTab: View {
 
 // MARK: — Advanced
 struct AdvancedSettingsTab: View {
-    @AppStorage("dryRunMode") private var dryRunMode = false
+    @AppStorage("dryRunMode")    private var dryRunMode    = false
+    @AppStorage("debugLogging")  private var debugLogging  = false
     @ObservedObject private var sparkle = SparkleUpdater.shared
 
     var body: some View {
@@ -628,6 +629,12 @@ struct AdvancedSettingsTab: View {
                             .font(.system(size: 11))
                             .foregroundColor(.orange)
                     }
+                }
+                Toggle("Debug logging", isOn: $debugLogging)
+                if debugLogging {
+                    Text("Verbose logs are written to Console.app under subsystem \u{201C}com.cacheout.CacheOut\u{201D}. Disable when not needed.")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
                 }
             }
 
@@ -676,18 +683,22 @@ struct AdvancedSettingsTab: View {
 
             Section("About") {
                 Button("View on GitHub") {
-                    NSWorkspace.shared.open(URL(string: "https://github.com/apoorv/cache-out")!)
+                    if let url = URL(string: "https://github.com/apoorv/cache-out") {
+                        NSWorkspace.shared.open(url)
+                    }
                 }
                 Button("Reset all settings…") {
                     let keys = ["showMenuBar","notifyOnComplete","scanOnLaunch",
-                                "unusedAppDays","appearanceMode",
+                                "unusedAppDays","appearanceMode","showTourOnLaunch",
                                 "autoCleanSchedule","cleanWhitelist",
                                 "purgeSkipRecentDays","purgeScanDirs",
-                                "dryRunMode","showTourOnLaunch",
+                                "dryRunMode","debugLogging",
                                 "duplicatesMinSizeKB","duplicatesExcludedDirs",
-                                "largeFilesMinSizeKB","largeFilesExcludedDirs"]
+                                "largeFilesMinSizeKB","largeFilesExcludedDirs",
+                                "hasCompletedOnboarding","hasSeenTour"]
                     keys.forEach { UserDefaults.standard.removeObject(forKey: $0) }
-                    // Cancel any pending background clean after reset
+                    // Re-apply system appearance and cancel pending background clean
+                    NSApp.appearance = nil
                     NotificationCenter.default.post(name: .autoCleanScheduleChanged, object: nil)
                 }
                 .foregroundColor(.red)

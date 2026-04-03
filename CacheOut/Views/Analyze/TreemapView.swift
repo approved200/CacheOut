@@ -75,7 +75,7 @@ struct TreemapView: View {
                 let worstBefore = worstRatio(row: row, rowArea: rowArea,
                                              rowCross: rowCross, stripLen: Double(stripLen))
                 if row.count > 1 {
-                    let prevArea = rowArea - Double(row.last!.size) / totalSize * totalArea
+                    let prevArea = rowArea - Double(row.last?.size ?? 0) / totalSize * totalArea
                     let prevCross = prevArea / Double(stripLen)
                     let worstBefore2 = worstRatio(row: Array(row.dropLast()),
                                                   rowArea: prevArea, rowCross: prevCross,

@@ -108,7 +108,7 @@ The test suite covers: formatter correctness, whitelist size filtering (BUG-03 r
 | Script | Purpose | When to run |
 |---|---|---|
 | `generate_xcodeproj.py` | Regenerates `project.pbxproj` deterministically | After adding or removing any `.swift` file |
-| `validate_placeholders.sh` | Blocks archive if Sparkle keys or Team ID are unfilled | Wire into Xcode Build Phases (see Distributing section) |
+| `validate_placeholders.sh` | Blocks archive if Sparkle keys or Team ID are unfilled | Wire into Xcode Build Phases: Target → Build Phases → "+" → New Run Script Phase, drag above "Sign Binary With Entitlements", set script to `"${SRCROOT}/validate_placeholders.sh"`, enable "For install builds only" |
 
 ---
 
