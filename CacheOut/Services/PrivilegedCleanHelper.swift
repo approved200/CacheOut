@@ -38,7 +38,8 @@ enum PrivilegedCleanError: LocalizedError {
 }
 
 // Only paths under these prefixes are ever passed to the privileged helper.
-private let allowedPrivilegedPrefixes: [String] = [
+// Also used by CleanViewModel.isSystemOwnedPath — single source of truth.
+let privilegedPathPrefixes: [String] = [
     "/private/var/log",
     "/private/tmp",
     "/var/log",
@@ -53,7 +54,7 @@ enum PrivilegedCleanHelper {
     /// Returns nil on success, a localised error string on failure or cancellation.
     static func deleteWithAuth(path: String, itemName: String) async -> String? {
         // Validate path before ever showing an auth dialog.
-        guard allowedPrivilegedPrefixes.contains(where: { path.hasPrefix($0) }) else {
+        guard privilegedPathPrefixes.contains(where: { path.hasPrefix($0) }) else {
             return PrivilegedCleanError.unsafePath(path).localizedDescription
         }
 

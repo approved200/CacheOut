@@ -6,7 +6,7 @@ Run from the repo root: python3 generate_xcodeproj.py
 """
 import os, hashlib
 
-ROOT = "/Users/apoorv/Documents/GitHub/Cache Out"
+ROOT = os.path.dirname(os.path.abspath(__file__))
 PROJ_NAME = "Cache Out"
 TARGET_NAME = "Cache Out"
 BUNDLE_ID = "com.cacheout.CacheOut"

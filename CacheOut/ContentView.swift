@@ -91,7 +91,7 @@ struct ContentView: View {
     var body: some View {
         ZStack {
             NavigationSplitView {
-                SidebarView(selection: safeTabBinding, highlightedTab: highlightedTab)
+                SidebarView(selection: safeTabBinding)
                     .navigationSplitViewColumnWidth(min: 190, ideal: 200, max: 220)
             } detail: {
             // The detail column has NO glass effect — like Finder's right pane,

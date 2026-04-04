@@ -54,7 +54,7 @@
 	                   NEVER commit the private key.
 	     ═══════════════════════════════════════════════════════════════════ -->
 	<key>SUFeedURL</key>
-	<string>https://raw.githubusercontent.com/apoorv/cache-out/main/appcast.xml</string>
+	<string>https://raw.githubusercontent.com/approved200/CacheOut/main/appcast.xml</string>
 	<key>SUPublicEDKey</key>
 	<string>/AEY9mlQoA0Ndx9vht4QpfYm/TsgkBkUTzXWio333Dk=</string>
 	<key>SUEnableAutomaticChecks</key>

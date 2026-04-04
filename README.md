@@ -11,15 +11,7 @@
 
 ## Screenshots
 
-| Clean | Analyze |
-|:---:|:---:|
-| ![Clean tab](screenshots/clean-light.png) | ![Analyze tab](screenshots/analyze-light.png) |
-
-| Dev Purge | Duplicates | Status |
-|:---:|:---:|:---:|
-| ![Dev Purge tab](screenshots/devpurge-light.png) | ![Duplicates tab](screenshots/duplicates-light.png) | ![Status tab](screenshots/status-light.png) |
-
-> Dark mode screenshots in `screenshots/` — all tabs have light and dark variants.
+> Screenshots will be added after the first notarized build. See `screenshots/README.md` for instructions on generating them.
 
 ---
 
@@ -89,7 +81,7 @@ The bundled `mo` CLI is included — no Homebrew install needed.
 ## Build & run
 
 ```bash
-git clone https://github.com/apoorv/cache-out
+git clone https://github.com/approved200/CacheOut
 cd "Cache Out"
 
 # Required after adding or removing any .swift file:

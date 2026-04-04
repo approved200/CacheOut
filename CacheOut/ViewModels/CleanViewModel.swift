@@ -325,21 +325,12 @@ class CleanViewModel: ObservableObject {
         postCleanNotification(dryRun: dryRun)
     }
 
-    /// Returns true for paths that are owned by root/system and cannot be
-    /// trashed by a user process regardless of Full Disk Access.
-    /// Full Disk Access grants read-only access to these paths — writes
-    /// (including trash) require root privileges that a sandboxed or
-    /// hardened-runtime app cannot obtain.
     private func isSystemOwnedPath(_ path: String) -> Bool {
-        let systemPrefixes = [
-            "/private/var/log",
-            "/private/tmp",
-            "/var/log",
-            "/tmp",
-            "/private/var/folders",
-            "/Library/Logs",          // system-wide logs, root-owned
-        ]
-        return systemPrefixes.contains { path.hasPrefix($0) }
+        // Uses privilegedPathPrefixes from PrivilegedCleanHelper — single source of truth.
+        // System-owned paths get a PrivilegedItemCard in completeState instead of a
+        // silent skip, so the user can authenticate and delete them if desired.
+        privilegedPathPrefixes.contains { path.hasPrefix($0) }
+            && !path.hasPrefix("/Applications/")  // app bundles: handled by AppDetailView
     }
 
     // MARK: — Restore last clean (put back from Trash)

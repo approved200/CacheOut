@@ -9,10 +9,6 @@ on:
 jobs:
   build:
     name: Build & Test (macOS)
-    # macos-26 GitHub Actions runner is not yet available.
-    # macos-15 (Sequoia) is used for CI until Apple releases a Tahoe runner.
-    # The app targets macOS 26 for Liquid Glass — local builds on Tahoe are required
-    # to see the full design. CI validates Swift 6 correctness and test coverage only.
     runs-on: macos-15
 
     steps:

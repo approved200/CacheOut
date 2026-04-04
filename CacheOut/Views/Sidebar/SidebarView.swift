@@ -2,11 +2,6 @@ import SwiftUI
 
 struct SidebarView: View {
     @Binding var selection: NavItem?
-    // highlightedTab is no longer needed — the tour drives selectedTab in
-    // ContentView directly, so the List's native selection renders the
-    // system filled-blue-capsule highlight automatically. Parameter kept
-    // for call-site compatibility but intentionally unused.
-    var highlightedTab: NavItem? = nil
 
     var body: some View {
         List(selection: $selection) {

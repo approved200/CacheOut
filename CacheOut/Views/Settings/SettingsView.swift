@@ -683,7 +683,7 @@ struct AdvancedSettingsTab: View {
 
             Section("About") {
                 Button("View on GitHub") {
-                    if let url = URL(string: "https://github.com/apoorv/cache-out") {
+                    if let url = URL(string: "https://github.com/approved200/CacheOut") {
                         NSWorkspace.shared.open(url)
                     }
                 }

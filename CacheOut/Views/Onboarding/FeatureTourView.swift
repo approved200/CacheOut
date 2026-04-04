@@ -291,21 +291,17 @@ struct AppTourOverlay: View {
 
 // MARK: — Standalone FeatureTourView
 // Used when opening the tour from Settings → General or from the menu bar.
-// Wraps ContentView with the overlay — identical experience to the launch tour.
+// Shows the tour overlay over a static app-chrome placeholder — avoids
+// spinning up a full second ContentView (with 9 ViewModels) just for a background.
 struct FeatureTourView: View {
     @Environment(\.dismiss) private var dismiss
-    @AppStorage("showTourOnLaunch") private var showTourOnLaunch = false
     @State private var showTour       = true
     @State private var highlightedTab : NavItem? = nil
 
-    // ViewModels required by ContentView — standalone instances for preview only.
-    // When launched from the main window the overlay lives inside ContentView
-    // directly, so this wrapper is only used for the Settings sheet path.
     var body: some View {
         ZStack {
-            // The real app chrome underneath
-            ContentView()
-                .allowsHitTesting(false)   // tour is modal
+            TourBackdrop()
+                .allowsHitTesting(false)
             if showTour {
                 AppTourOverlay(isShowing: $showTour, highlightedTab: $highlightedTab)
                     .onChange(of: showTour) { _, showing in
@@ -317,17 +313,15 @@ struct FeatureTourView: View {
     }
 }
 
-// MARK: — Embedded tour (kept for OnboardingView final step)
-// Uses the same AppTourOverlay but wires it to a local state so it can fire
-// the onComplete callback when the user finishes or dismisses.
+// MARK: — Embedded tour (OnboardingView final step)
 struct EmbeddedTourView: View {
     let onComplete: () -> Void
-    @State private var showTour      = true
-    @State private var highlighted   : NavItem? = nil
+    @State private var showTour    = true
+    @State private var highlighted : NavItem? = nil
 
     var body: some View {
         ZStack {
-            ContentView()
+            TourBackdrop()
                 .allowsHitTesting(false)
             if showTour {
                 AppTourOverlay(isShowing: $showTour, highlightedTab: $highlighted)
@@ -337,6 +331,42 @@ struct EmbeddedTourView: View {
             }
         }
         .frame(width: 900, height: 620)
+    }
+}
+
+// MARK: — TourBackdrop
+// Lightweight static mockup of the app chrome used behind the tour overlay.
+// Avoids the cost of a full ContentView (9 ViewModels, timers, file I/O)
+// just to render a non-interactive background.
+private struct TourBackdrop: View {
+    var body: some View {
+        HStack(spacing: 0) {
+            // Sidebar column
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(NavItem.allCases, id: \.self) { item in
+                    HStack(spacing: 8) {
+                        Image(systemName: item.icon)
+                            .font(.system(size: 13))
+                            .frame(width: 18)
+                        Text(item.rawValue)
+                            .font(.system(size: 13))
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .foregroundColor(.primary)
+                }
+                Spacer()
+            }
+            .frame(width: 200)
+            .background(.ultraThinMaterial)
+
+            Divider()
+
+            // Detail column — blank
+            Rectangle()
+                .fill(Color(nsColor: .windowBackgroundColor))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
     }
 }
 

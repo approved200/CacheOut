@@ -7,9 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		C7F334716234A0778CA52469 = {isa = PBXBuildFile; fileRef = 9DD6CA7D8842EA2910A681C6; };
 		5D2FFFFD0603FB90479DD194 = {isa = PBXBuildFile; fileRef = 612335DF9622CF688A782E78; };
 		F39DA63DF5F7C0243A52667A = {isa = PBXBuildFile; fileRef = 3EF37B32066B7BAE6D39AB56; };
-		DEFABA0849837A1DA6E70D7E = {isa = PBXBuildFile; fileRef = 56888218168A7AEB8BF43B9B; };
 		56A93C9FCDA74A7E4330F290 = {isa = PBXBuildFile; fileRef = F3CBF97705079C69195C32F3; };
 		5F08C739D35C972B37AFDC4B = {isa = PBXBuildFile; fileRef = 40D37EFB6A6DB76E3ECF94A5; };
 		6964977CD6CF689D585A592F = {isa = PBXBuildFile; fileRef = 6C9E8076ED8D1177A9625D7D; };
@@ -46,7 +46,6 @@
 		AC4A173986CAE74AED30FE96 = {isa = PBXBuildFile; fileRef = E431CABECA65C0EC3AD52FA1; };
 		73D484B98BABAA25CCBCE44D = {isa = PBXBuildFile; fileRef = E58679E77ED4CF8CF1F0611D; };
 		9486FEBCD7373C05B234D8F0 = {isa = PBXBuildFile; fileRef = 4E5E39F2F90F01A74C86A29E; };
-		82E828D198553D0D6A0E7E9B = {isa = PBXBuildFile; fileRef = FB4F34E6463B656C62E01C88; };
 		E750750D8FDC08699363CA42 = {isa = PBXBuildFile; fileRef = 79262DD0D6B6B4C74FE7EF4D; };
 		DD0B7A4529AC84A35D03710A = {isa = PBXBuildFile; fileRef = 07466F3BA049FA90ECB136FE; };
 		73FAEBD330FD898A7E1747DD = {isa = PBXBuildFile; fileRef = 7AA4B15C0B01D17374EBCEA4; };
@@ -96,9 +95,9 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		9DD6CA7D8842EA2910A681C6 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CacheOutApp.swift; path = "CacheOut/CacheOutApp.swift"; sourceTree = "<group>"; };
 		612335DF9622CF688A782E78 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ContentView.swift; path = "CacheOut/ContentView.swift"; sourceTree = "<group>"; };
 		3EF37B32066B7BAE6D39AB56 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Models.swift; path = "CacheOut/Models/Models.swift"; sourceTree = "<group>"; };
-		56888218168A7AEB8BF43B9B = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MoleApp.swift; path = "CacheOut/MoleApp.swift"; sourceTree = "<group>"; };
 		F3CBF97705079C69195C32F3 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppScanner.swift; path = "CacheOut/Services/AppScanner.swift"; sourceTree = "<group>"; };
 		40D37EFB6A6DB76E3ECF94A5 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BackgroundCleanScheduler.swift; path = "CacheOut/Services/BackgroundCleanScheduler.swift"; sourceTree = "<group>"; };
 		6C9E8076ED8D1177A9625D7D = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DiskScanner.swift; path = "CacheOut/Services/DiskScanner.swift"; sourceTree = "<group>"; };
@@ -135,7 +134,6 @@
 		E431CABECA65C0EC3AD52FA1 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MenuBarPopover.swift; path = "CacheOut/Views/MenuBar/MenuBarPopover.swift"; sourceTree = "<group>"; };
 		E58679E77ED4CF8CF1F0611D = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FeatureTourView.swift; path = "CacheOut/Views/Onboarding/FeatureTourView.swift"; sourceTree = "<group>"; };
 		4E5E39F2F90F01A74C86A29E = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OnboardingView.swift; path = "CacheOut/Views/Onboarding/OnboardingView.swift"; sourceTree = "<group>"; };
-		FB4F34E6463B656C62E01C88 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Placeholders.swift; path = "CacheOut/Views/Placeholders.swift"; sourceTree = "<group>"; };
 		79262DD0D6B6B4C74FE7EF4D = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ArtifactFilterPills.swift; path = "CacheOut/Views/Purge/ArtifactFilterPills.swift"; sourceTree = "<group>"; };
 		07466F3BA049FA90ECB136FE = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ProjectRow.swift; path = "CacheOut/Views/Purge/ProjectRow.swift"; sourceTree = "<group>"; };
 		7AA4B15C0B01D17374EBCEA4 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PurgeView.swift; path = "CacheOut/Views/Purge/PurgeView.swift"; sourceTree = "<group>"; };
@@ -246,8 +244,8 @@
 				C2CE8CDF757512F0552D001F,
 				7425F2482BC7CF092FA1E102,
 				204674882BE9B005B2348BE8,
+				9DD6CA7D8842EA2910A681C6,
 				612335DF9622CF688A782E78,
-				56888218168A7AEB8BF43B9B,
 			);
 			name = CacheOut;
 			sourceTree = "<group>";
@@ -322,7 +320,6 @@
 				49EC1A83A0C9E5EFA4E52B1A,
 				F2F4A5E5C4312435BE3A4D3D,
 				3FCFCCF0ABD793122FE4F509,
-				FB4F34E6463B656C62E01C88,
 			);
 			name = Views;
 			sourceTree = "<group>";
@@ -542,9 +539,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C7F334716234A0778CA52469,
 				5D2FFFFD0603FB90479DD194,
 				F39DA63DF5F7C0243A52667A,
-				DEFABA0849837A1DA6E70D7E,
 				56A93C9FCDA74A7E4330F290,
 				5F08C739D35C972B37AFDC4B,
 				6964977CD6CF689D585A592F,
@@ -581,7 +578,6 @@
 				AC4A173986CAE74AED30FE96,
 				73D484B98BABAA25CCBCE44D,
 				9486FEBCD7373C05B234D8F0,
-				82E828D198553D0D6A0E7E9B,
 				E750750D8FDC08699363CA42,
 				DD0B7A4529AC84A35D03710A,
 				73FAEBD330FD898A7E1747DD,
