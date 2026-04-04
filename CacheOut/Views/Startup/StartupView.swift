@@ -5,6 +5,10 @@ struct StartupView: View {
     @ObservedObject var viewModel: StartupViewModel
     @EnvironmentObject private var cta: ToolbarCTAState
 
+    @ScaledMetric(relativeTo: .title2)  private var headlineSize: CGFloat = 17
+    @ScaledMetric(relativeTo: .body)    private var bodySize: CGFloat = 13
+    @ScaledMetric(relativeTo: .caption) private var captionSize: CGFloat = 11
+
     @State private var itemToRemove: StartupItem? = nil
     @State private var showRemoveConfirm = false
 
@@ -180,9 +184,9 @@ struct StartupView: View {
                 .font(.system(size: 48)).foregroundStyle(.green)
                 .symbolRenderingMode(.hierarchical)
             Text("No startup items found")
-                .font(.system(size: 17, weight: .semibold))
+                .font(.system(size: headlineSize, weight: .semibold))
             Text("No launch agents or login items were found\nin your Library folder.")
-                .font(.system(size: 13))
+                .font(.system(size: bodySize))
                 .foregroundColor(Color(nsColor: .secondaryLabelColor))
                 .multilineTextAlignment(.center)
         }

@@ -104,11 +104,17 @@ struct AppListRow: View {
                         .lineLimit(1)
                     if app.isUnused {
                         Text("Unused")
-                            .font(.system(size: 9, weight: .medium))
-                            .foregroundColor(.white)
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundColor(Color(nsColor: .systemRed))
                             .padding(.horizontal, 5)
                             .padding(.vertical, 2)
-                            .background(Capsule().fill(Color.red))
+                            .background(
+                                Capsule()
+                                    .fill(Color(nsColor: .systemRed).opacity(0.12))
+                                    .overlay(Capsule()
+                                        .stroke(Color(nsColor: .systemRed).opacity(0.35),
+                                                lineWidth: 0.5))
+                            )
                     }
                 }
                 Text("v\(app.version)")
@@ -179,6 +185,7 @@ struct AppIconView: View {
 // MARK: — Shimmer modifier for skeleton rows
 struct ShimmerModifier: ViewModifier {
     @State private var phase: CGFloat = 0
+    @Environment(\.colorScheme) private var colorScheme
 
     func body(content: Content) -> some View {
         content
@@ -186,7 +193,9 @@ struct ShimmerModifier: ViewModifier {
                 LinearGradient(
                     gradient: Gradient(stops: [
                         .init(color: .clear, location: phase - 0.2),
-                        .init(color: Color.white.opacity(0.06), location: phase),
+                        .init(color: (colorScheme == .dark
+                              ? Color.white.opacity(0.08)
+                              : Color.white.opacity(0.55)), location: phase),
                         .init(color: .clear, location: phase + 0.2),
                     ]),
                     startPoint: .leading,

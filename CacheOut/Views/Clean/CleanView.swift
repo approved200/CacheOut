@@ -334,28 +334,54 @@ struct CleanView: View {
 
             // Error banner — shown when one or more items failed to trash
             if !viewModel.cleanErrors.isEmpty {
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundColor(.orange).font(.system(size: 12))
-                        Text("\(viewModel.cleanErrors.count) item\(viewModel.cleanErrors.count == 1 ? "" : "s") could not be moved to Trash")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(.orange)
+                // For read-only items: show PrivilegedItemCard per item.
+                // A sub-item gets a card when its parent category is selected
+                // and the sub-item itself is read-only (system-owned path).
+                let readOnlyItems = viewModel.categoriesData
+                    .filter(\.isSelected)
+                    .flatMap(\.subItems)
+                    .filter(\.isReadOnly)
+                if !readOnlyItems.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        ForEach(readOnlyItems, id: \.id) { item in
+                            PrivilegedItemCard(item: item) {
+                                Task { await viewModel.startScan() }
+                            }
+                        }
                     }
-                    ForEach(viewModel.cleanErrors, id: \.self) { err in
-                        Text(err)
-                            .font(.system(size: 11, design: .monospaced))
-                            .foregroundColor(Color(nsColor: .secondaryLabelColor))
-                            .lineLimit(2)
-                    }
+                    .padding(.horizontal, 40)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
                 }
-                .padding(10)
-                .background(Color.orange.opacity(0.08))
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-                .overlay(RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color.orange.opacity(0.25), lineWidth: 0.5))
-                .padding(.horizontal, 40)
-                .transition(.opacity.combined(with: .move(edge: .bottom)))
+
+                // Genuine failures — everything that isn't a system-owned path skip
+                let otherErrors = viewModel.cleanErrors.filter {
+                    !$0.contains("owned by macOS")
+                }
+                // For genuine permission/other errors: plain error list
+                if !otherErrors.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(.orange).font(.system(size: 12))
+                            Text("\(otherErrors.count) item\(otherErrors.count == 1 ? "" : "s") could not be moved to Trash")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(.orange)
+                        }
+                        ForEach(otherErrors, id: \.self) { err in
+                            Text(err)
+                                .font(.system(size: 11, design: .monospaced))
+                                .foregroundColor(Color(nsColor: .secondaryLabelColor))
+                                .lineLimit(2)
+                        }
+                    }
+                    .padding(10)
+                    .background(Color.orange.opacity(0.08))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .overlay(RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.orange.opacity(0.25), lineWidth: 0.5))
+                    .padding(.horizontal, 40)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+                }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

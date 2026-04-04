@@ -7,6 +7,10 @@ struct LargeFilesView: View {
     @State private var showConfirm  = false
     @AppStorage("largeFilesMinSizeKB") private var minSizeKB: Int = 102_400
 
+    @ScaledMetric(relativeTo: .title2)  private var headlineSize: CGFloat = 17
+    @ScaledMetric(relativeTo: .body)    private var bodySize: CGFloat = 13
+    @ScaledMetric(relativeTo: .caption) private var captionSize: CGFloat = 11
+
     private var thresholdLabel: String {
         let kb = minSizeKB > 0 ? minSizeKB : 102_400
         if kb < 1_024       { return "\(kb) KB" }
@@ -68,12 +72,12 @@ struct LargeFilesView: View {
                 .font(.system(size: 48)).foregroundStyle(.green)
                 .symbolRenderingMode(.hierarchical)
             Text("No large files found")
-                .font(.system(size: 17, weight: .semibold))
+                .font(.system(size: headlineSize, weight: .semibold))
             Text("No files over \(thresholdLabel) found.")
-                .font(.system(size: 13))
+                .font(.system(size: bodySize))
                 .foregroundColor(Color(nsColor: .secondaryLabelColor))
             Text("Change the threshold in Settings → Large files.")
-                .font(.system(size: 11))
+                .font(.system(size: captionSize))
                 .foregroundColor(Color(nsColor: .tertiaryLabelColor))
             addFolderButton
         }

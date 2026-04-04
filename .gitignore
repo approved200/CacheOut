@@ -43,3 +43,9 @@ build/
 # Generated python cache
 __pycache__/
 *.pyc
+
+# Mocked screenshots — may contain generated PNGs
+screenshots/mocked/
+
+#Claude
+.claude

@@ -3,7 +3,7 @@ import SwiftUI
 
 // MARK: — File category for type-based filtering
 enum FileCategory: String, CaseIterable, Identifiable {
-    case video    = "Video"
+    case video    = "Video"     // sentence-case display names (rawValue used in UI pills)
     case image    = "Image"
     case audio    = "Audio"
     case document = "Document"

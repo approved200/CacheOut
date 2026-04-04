@@ -8,6 +8,10 @@ struct DuplicatesView: View {
     @State private var restoreResult: (restored: Int, errors: [String])? = nil
     @AppStorage("duplicatesMinSizeKB") private var minSizeKB: Int = 1024
 
+    @ScaledMetric(relativeTo: .title2)  private var headlineSize: CGFloat = 17
+    @ScaledMetric(relativeTo: .body)    private var bodySize: CGFloat = 13
+    @ScaledMetric(relativeTo: .caption) private var captionSize: CGFloat = 11
+
     private var effectiveScanRoots: [String] {
         viewModel.customScanRoots.isEmpty
             ? PurgeViewModel.defaultScanRoots()
@@ -94,13 +98,13 @@ struct DuplicatesView: View {
                 .font(.system(size: 48)).foregroundStyle(.green)
                 .symbolRenderingMode(.hierarchical)
             Text("No duplicates found")
-                .font(.system(size: 17, weight: .semibold))
+                .font(.system(size: headlineSize, weight: .semibold))
             Text("Scan your folders to find identical files\nwasting space on your Mac.")
-                .font(.system(size: 13))
+                .font(.system(size: bodySize))
                 .foregroundColor(Color(nsColor: .secondaryLabelColor))
                 .multilineTextAlignment(.center)
             Text("Scanning files over \(minSizeLabel). Change in Settings → Duplicates.")
-                .font(.system(size: 11))
+                .font(.system(size: captionSize))
                 .foregroundColor(Color(nsColor: .tertiaryLabelColor))
                 .multilineTextAlignment(.center)
             HStack(spacing: 12) {
@@ -481,6 +485,7 @@ private struct DuplicateFileRow: View {
                 .buttonStyle(.borderedProminent)
                 .controlSize(.mini)
                 .help("Keep this copy, move all others to Trash")
+                .accessibilityHint("Keeps this file and moves all other copies to Trash")
             } else {
                 // On non-keep rows: let the user designate this file as the one to keep
                 Button(action: onKeep) {
@@ -490,6 +495,7 @@ private struct DuplicateFileRow: View {
                 .buttonStyle(.bordered)
                 .controlSize(.mini)
                 .help("Mark this copy as the one to keep")
+                .accessibilityHint("Marks this copy as the one to keep when removing duplicates")
             }
         }
         .padding(.horizontal, 14).padding(.vertical, 8)

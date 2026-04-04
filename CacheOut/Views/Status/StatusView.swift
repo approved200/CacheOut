@@ -4,6 +4,9 @@ struct StatusView: View {
     @StateObject private var monitor = SystemMonitor()
     @EnvironmentObject private var cta: ToolbarCTAState
 
+    @ScaledMetric(relativeTo: .title2) private var macNameSize: CGFloat = 15
+    @ScaledMetric(relativeTo: .body)   private var bodySize: CGFloat = 13
+
     private var memPct: Double {
         monitor.memoryTotal > 0 ? Double(monitor.memoryUsed) / Double(monitor.memoryTotal) : 0
     }
@@ -28,17 +31,17 @@ struct StatusView: View {
 
                     VStack(alignment: .leading, spacing: 4) {
                         Text(monitor.macModel.isEmpty ? "Mac" : friendlyModel(monitor.macModel))
-                            .font(.system(size: 15, weight: .semibold))
+                            .font(.system(size: macNameSize, weight: .semibold))
                             .lineLimit(1)
 
                         if !monitor.chipName.isEmpty {
                             Text(friendlyChip(monitor.chipName))
-                                .font(.system(size: 12))
+                                .font(.system(size: bodySize - 1))
                                 .foregroundColor(Color(nsColor: .secondaryLabelColor))
                         }
                         if !monitor.ramDescription.isEmpty {
                             Text(monitor.ramDescription + " memory")
-                                .font(.system(size: 12))
+                                .font(.system(size: bodySize - 1))
                                 .foregroundColor(Color(nsColor: .secondaryLabelColor))
                         }
                         HStack(spacing: 10) {

@@ -9,6 +9,12 @@ struct OrphanedItem: Identifiable {
     let displayName: String
     let size       : Int64
     let category   : String   // "Caches", "Application Support", "Containers"
+    var matchConfidence: MatchConfidence = .heuristic
+
+    enum MatchConfidence: Codable {
+        case confident   // exact bundle ID match
+        case heuristic   // fuzzy name/path match
+    }
 }
 
 // MARK: — ViewModel

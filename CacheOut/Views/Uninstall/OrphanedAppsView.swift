@@ -5,6 +5,9 @@ struct OrphanedAppsView: View {
     @EnvironmentObject private var cta: ToolbarCTAState
     @State private var showTrashConfirm = false
 
+    @ScaledMetric(relativeTo: .title2)  private var headlineSize: CGFloat = 17
+    @ScaledMetric(relativeTo: .body)    private var bodySize: CGFloat = 13
+
     var body: some View {
         Group {
             if viewModel.isScanning { scanningState }
@@ -49,9 +52,9 @@ struct OrphanedAppsView: View {
                 .font(.system(size: 48)).foregroundStyle(.green)
                 .symbolRenderingMode(.hierarchical)
             Text("No orphaned files found")
-                .font(.system(size: 17, weight: .semibold))
+                .font(.system(size: headlineSize, weight: .semibold))
             Text("All support files belong to installed apps.")
-                .font(.system(size: 13))
+                .font(.system(size: bodySize))
                 .foregroundColor(Color(nsColor: .secondaryLabelColor))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -167,6 +170,9 @@ private struct OrphanRow: View {
                 HStack(spacing: 6) {
                     Text(item.displayName)
                         .font(.system(size: 13, weight: .medium)).lineLimit(1)
+                    if item.matchConfidence == .heuristic {
+                        HeuristicBadge()
+                    }
                     Text(item.category)
                         .font(.system(size: 9, weight: .semibold))
                         .foregroundColor(Color(nsColor: .secondaryLabelColor))
@@ -193,5 +199,17 @@ private struct OrphanRow: View {
                 NSWorkspace.shared.selectFile(item.path, inFileViewerRootedAtPath: "")
             }
         }
+    }
+}
+
+private struct HeuristicBadge: View {
+    var body: some View {
+        Label("Possible Match", systemImage: "questionmark.circle")
+            .font(.caption2.weight(.medium))
+            .foregroundStyle(.orange)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(.orange.opacity(0.12), in: Capsule())
+            .help("Detected via heuristic matching — this item may not be a leftover. Review before removing.")
     }
 }

@@ -28,6 +28,9 @@ struct SubItem: Identifiable {
     let name: String
     let path: String
     let size: Int64
+    /// True for system-owned paths under /private that cannot be trashed
+    /// by a user process even with Full Disk Access.
+    var isReadOnly: Bool = false
 }
 
 @MainActor
@@ -203,10 +206,10 @@ class CleanViewModel: ObservableObject {
             SubItem(name: "Edge cache",    path: "~/Library/Caches/com.microsoft.edgemac", size: edgeSz),
         ].filter { $0.size > 0 }
         let allSystemSubs: [SubItem] = [
-            SubItem(name: "System logs",      path: "/private/var/log",                        size: logsSz),
-            SubItem(name: "Temp files",       path: "/private/tmp",                            size: tmpSz),
-            SubItem(name: "Crash reports",    path: "~/Library/Logs/DiagnosticReports",        size: crashSz),
-            SubItem(name: "iOS backups",      path: "~/Library/Application Support/MobileSync/Backup", size: iosBackupSz),
+            SubItem(name: "System logs",        path: "/private/var/log",                        size: logsSz,      isReadOnly: true),
+            SubItem(name: "Temp files",         path: "/private/tmp",                            size: tmpSz,       isReadOnly: true),
+            SubItem(name: "Crash reports",      path: "~/Library/Logs/DiagnosticReports",        size: crashSz),
+            SubItem(name: "iOS backups",        path: "~/Library/Application Support/MobileSync/Backup", size: iosBackupSz),
             SubItem(name: "iOS device updates", path: "~/Library/iTunes/iPhone Software Updates", size: iosUpdateSz),
         ].filter { $0.size > 0 }
         let allAppSubs: [SubItem] = ([
@@ -282,18 +285,28 @@ class CleanViewModel: ObservableObject {
         let selectedItems = categoriesData.filter(\.isSelected).flatMap(\.subItems)
         for (idx, item) in selectedItems.enumerated() {
             if Task.isCancelled { break }
-            let url = URL(fileURLWithPath: expand(item.path))
+            let expandedPath = expand(item.path)
+            let url = URL(fileURLWithPath: expandedPath)
+
             if !dryRun && fm.fileExists(atPath: url.path) {
-                do {
-                    var resultURL: NSURL? = nil
-                    try fm.trashItem(at: url, resultingItemURL: &resultURL)
-                    // Record the original→trash mapping for undo
-                    if let dest = resultURL as URL? {
-                        trashed.append((original: url, inTrash: dest))
+                // System-owned paths under /private cannot be trashed by a user
+                // process — even with Full Disk Access, macOS only grants read
+                // permission to these paths. Skip them with an honest message
+                // rather than surfacing a cryptic permission error.
+                if isSystemOwnedPath(expandedPath) {
+                    errors.append("\(item.name): owned by macOS — cannot be moved to Trash by a user app. Use Disk Utility or Terminal with sudo to clear this path.")
+                    CacheOutLogger.clean.debugIfEnabled("Skipped system-owned path: \(expandedPath)")
+                } else {
+                    do {
+                        var resultURL: NSURL? = nil
+                        try fm.trashItem(at: url, resultingItemURL: &resultURL)
+                        if let dest = resultURL as URL? {
+                            trashed.append((original: url, inTrash: dest))
+                        }
+                    } catch {
+                        errors.append("\(item.name): \(error.localizedDescription)")
+                        CacheOutLogger.clean.error("trashItem failed for \(item.path): \(error.localizedDescription)")
                     }
-                } catch {
-                    errors.append("\(item.name): \(error.localizedDescription)")
-                    CacheOutLogger.clean.error("trashItem failed for \(item.path): \(error.localizedDescription)")
                 }
             }
             let progress = Double(idx + 1) / Double(selectedItems.count)
@@ -310,6 +323,23 @@ class CleanViewModel: ObservableObject {
         state = .complete
         NotificationCenter.default.post(name: .diskFreed, object: nil)
         postCleanNotification(dryRun: dryRun)
+    }
+
+    /// Returns true for paths that are owned by root/system and cannot be
+    /// trashed by a user process regardless of Full Disk Access.
+    /// Full Disk Access grants read-only access to these paths — writes
+    /// (including trash) require root privileges that a sandboxed or
+    /// hardened-runtime app cannot obtain.
+    private func isSystemOwnedPath(_ path: String) -> Bool {
+        let systemPrefixes = [
+            "/private/var/log",
+            "/private/tmp",
+            "/var/log",
+            "/tmp",
+            "/private/var/folders",
+            "/Library/Logs",          // system-wide logs, root-owned
+        ]
+        return systemPrefixes.contains { path.hasPrefix($0) }
     }
 
     // MARK: — Restore last clean (put back from Trash)

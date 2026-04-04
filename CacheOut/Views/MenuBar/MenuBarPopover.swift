@@ -112,7 +112,8 @@ struct TinyGauge: View {
                 .foregroundColor(Color(nsColor: .secondaryLabelColor))
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(title): \(label)")
+        .accessibilityLabel("\(title) usage")
+        .accessibilityValue("\(label) — \(Int(min(value, 100))) percent")
     }
 }
 

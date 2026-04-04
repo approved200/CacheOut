@@ -4,19 +4,79 @@ import Foundation
 // Wraps Sparkle's SPUStandardUpdaterController and exposes a thin
 // ObservableObject surface so Settings can bind to update availability.
 //
-// SETUP STATUS (as of 2026-03-25):
+// SETUP STATUS:
 //   ✓ Step 1 — Sparkle 2.x added via SPM (File → Add Package Dependencies)
+//               URL: https://github.com/sparkle-project/Sparkle
+//               Version requirement: Up to Next Major, from 2.0.0
 //   ✓ Step 2 — EdDSA keys generated; public key in Info.plist → SUPublicEDKey;
-//               private key saved to macOS Keychain by generate_keys automatically
-//   ✓ Step 3 — SUFeedURL points to apoorv/cache-out on GitHub
-//   ○ Step 4 — After each release: sign the notarized DMG and update appcast.xml:
-//       ~/...DerivedData/.../SourcePackages/artifacts/sparkle/Sparkle/bin/sign_update \
-//         CacheOut-1.x.dmg
-//       (private key is read from Keychain automatically — no --ed-key-file flag needed)
-//       Paste the printed edSignature + DMG byte size into appcast.xml, then push to main.
+//               private key saved to macOS Keychain by generate_keys automatically.
+//               To regenerate keys (if lost):
+//               ~/...DerivedData/.../SourcePackages/artifacts/sparkle/Sparkle/bin/generate_keys
+//   ✓ Step 3 — SUFeedURL in Info.plist points to GitHub raw appcast.xml
+//   ✓ Step 4 — SUPublicEDKey in Info.plist matches Keychain-stored private key
+//   ○ Step 5 — After each release, sign the notarized DMG and update appcast.xml:
 //
-// The #if canImport(Sparkle) guard is kept for safety — compiles as a no-op stub
-// in any environment where the SPM package is not resolved.
+//   RELEASE WORKFLOW (run once per version):
+//   1. Build archive:
+//      xcodebuild archive \
+//        -project "Cache Out.xcodeproj" \
+//        -scheme "Cache Out" \
+//        -configuration Release \
+//        -archivePath build/CacheOut.xcarchive
+//
+//   2. Export + sign (fill YOUR_TEAM_ID in exportOptions.plist first):
+//      xcodebuild -exportArchive \
+//        -archivePath build/CacheOut.xcarchive \
+//        -exportPath build/export \
+//        -exportOptionsPlist exportOptions.plist
+//
+//   3. Notarize the .app:
+//      xcrun notarytool submit "build/export/Cache Out.app" \
+//        --apple-id "your@apple.id" \
+//        --team-id "YOUR_TEAM_ID" \
+//        --password "@keychain:AC_PASSWORD" \
+//        --wait
+//
+//   4. Staple the .app:
+//      xcrun stapler staple "build/export/Cache Out.app"
+//
+//   5. Create DMG (requires: brew install create-dmg):
+//      create-dmg \
+//        --volname "Cache Out" \
+//        --window-size 540 380 \
+//        --icon-size 128 \
+//        --app-drop-link 380 185 \
+//        "CacheOut-1.0.0.dmg" \
+//        "build/export/Cache Out.app"
+//
+//   6. Sign the DMG with Developer ID:
+//      codesign --sign "Developer ID Application: YOUR NAME (YOUR_TEAM_ID)" \
+//        CacheOut-1.0.0.dmg
+//
+//   7. Notarize the DMG:
+//      xcrun notarytool submit CacheOut-1.0.0.dmg \
+//        --apple-id "your@apple.id" \
+//        --team-id "YOUR_TEAM_ID" \
+//        --password "@keychain:AC_PASSWORD" \
+//        --wait
+//
+//   8. Staple the DMG:
+//      xcrun stapler staple CacheOut-1.0.0.dmg
+//
+//   9. Sign with Sparkle (private key read from Keychain automatically):
+//      ~/Library/Developer/Xcode/DerivedData/Cache_Out-*/SourcePackages/artifacts/sparkle/Sparkle/bin/sign_update \
+//        CacheOut-1.0.0.dmg
+//      → Output looks like:
+//        sparkle:edSignature="ABC123..." length="12345678"
+//      → Paste edSignature + length into appcast.xml → commit → push to main.
+//
+//   VERIFYING THE SETUP:
+//   To confirm Sparkle can find and verify updates before releasing:
+//   1. Build and run a Debug build.
+//   2. In the app menu → "Check for Updates…"
+//   3. If Sparkle finds the update: edSignature is correct, feed URL is reachable.
+//   4. If Sparkle shows "up to date": the appcast.xml version == CFBundleVersion.
+//      Bump sparkle:version in appcast.xml to a higher integer to force an update check.
 
 #if canImport(Sparkle)
 import Sparkle
@@ -45,9 +105,6 @@ final class SparkleUpdater: ObservableObject {
             updaterDelegate: delegate,
             userDriverDelegate: nil
         )
-        // SPUUpdaterDelegate has no "willCheckForUpdates" hook in Sparkle 2.x.
-        // We set isCheckingForUpdates = true directly inside checkForUpdates()
-        // before calling the controller, and clear it in the cycle-finish callback.
         delegate.onDidFindValidUpdate = { [weak self] versionString in
             DispatchQueue.main.async {
                 self?.isCheckingForUpdates = false
@@ -68,8 +125,6 @@ final class SparkleUpdater: ObservableObject {
 
     /// Triggered by "Check for Updates…" in the app menu.
     func checkForUpdates() {
-        // SPUUpdaterDelegate has no pre-check hook, so we set the spinner state here
-        // before handing off to Sparkle. The delegate's onDidFinishUpdateCycle clears it.
         isCheckingForUpdates = true
         isUpToDate = false
         pendingUpdateVersion = nil
@@ -80,25 +135,15 @@ final class SparkleUpdater: ObservableObject {
     var canCheckForUpdates: Bool { controller.updater.canCheckForUpdates }
 }
 
-// MARK: — Minimal Sparkle delegate (bridges callbacks to closures)
-// Method signatures verified directly against SPUUpdaterDelegate.h in the
-// Sparkle 2.x checkout. The protocol has NO "willCheckForUpdates" hook —
-// the closest available notification is updater:willScheduleUpdateCheckAfterDelay:
-// and the deprecated updaterMayCheckForUpdates:. To drive the spinner we
-// instead set isCheckingForUpdates = true inside checkForUpdates() before
-// the call, and clear it in the cycle-finish callback.
+// MARK: — Minimal Sparkle delegate
 private final class SparkleDelegate: NSObject, SPUUpdaterDelegate {
     var onDidFindValidUpdate:   ((String) -> Void)?
     var onDidFinishUpdateCycle: (() -> Void)?
 
-    // Called when a valid update is found — exact signature from SPUUpdaterDelegate.h
     func updater(_ updater: SPUUpdater, didFindValidUpdate item: SUAppcastItem) {
         onDidFindValidUpdate?(item.displayVersionString)
     }
 
-    // Called when the full update cycle finishes — ObjC selector is
-    // updater:didFinishUpdateCycleForUpdateCheck:error: but Swift imports it
-    // with the label truncated to didFinishUpdateCycleFor: (type suffix dropped).
     func updater(_ updater: SPUUpdater,
                  didFinishUpdateCycleFor updateCheck: SPUUpdateCheck,
                  error: (any Error)?) {
@@ -111,8 +156,6 @@ private final class SparkleDelegate: NSObject, SPUUpdaterDelegate {
 #else
 
 // MARK: — Stub (active until Sparkle SPM is added)
-// Provides the same ObservableObject surface so the rest of the app compiles
-// unchanged. Settings row shows "Add Sparkle SPM to enable updates."
 @MainActor
 final class SparkleUpdater: ObservableObject {
     static let shared = SparkleUpdater()
@@ -121,14 +164,9 @@ final class SparkleUpdater: ObservableObject {
     @Published private(set) var isUpToDate               = false
     @Published private(set) var pendingUpdateVersion: String? = nil
 
-    /// False while Sparkle is not linked — correctly grays out the menu item.
     var canCheckForUpdates: Bool { false }
-
     private init() { }
 
-    func checkForUpdates() {
-        // No-op until the Sparkle SPM package is added.
-        // See the setup instructions at the top of this file.
-    }
+    func checkForUpdates() { }
 }
 #endif

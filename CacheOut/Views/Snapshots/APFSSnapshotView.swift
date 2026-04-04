@@ -5,6 +5,10 @@ struct APFSSnapshotView: View {
     @EnvironmentObject private var cta: ToolbarCTAState
     @State private var showDeleteConfirm = false
 
+    @ScaledMetric(relativeTo: .title2)  private var headlineSize: CGFloat = 17
+    @ScaledMetric(relativeTo: .body)    private var bodySize: CGFloat = 13
+    @ScaledMetric(relativeTo: .caption) private var captionSize: CGFloat = 11
+
     var body: some View {
         // Root is always a VStack — same pattern as CleanView / AnalyzeView.
         // NavigationSplitView measures the detail column from this root; keeping it
@@ -166,9 +170,9 @@ struct APFSSnapshotView: View {
                 .font(.system(size: 48)).foregroundStyle(.green)
                 .symbolRenderingMode(.hierarchical)
             Text("No local snapshots found")
-                .font(.system(size: 17, weight: .semibold))
+                .font(.system(size: headlineSize, weight: .semibold))
             Text("No local Time Machine snapshots are stored\non this machine.")
-                .font(.system(size: 13))
+                .font(.system(size: bodySize))
                 .foregroundColor(Color(nsColor: .secondaryLabelColor))
                 .multilineTextAlignment(.center)
             if viewModel.purgeableBytes > 0 {

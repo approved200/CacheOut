@@ -5,6 +5,10 @@ struct PurgeView: View {
     @EnvironmentObject private var cta: ToolbarCTAState
     @AppStorage("dryRunMode") private var dryRunMode = false
 
+    @ScaledMetric(relativeTo: .title2)  private var headlineSize: CGFloat = 17
+    @ScaledMetric(relativeTo: .body)    private var bodySize: CGFloat = 13
+    @ScaledMetric(relativeTo: .caption) private var captionSize: CGFloat = 11
+
     private var scanRootsLabel: String {
         let roots = viewModel.scanRoots
         guard !roots.isEmpty else { return "No project directories found" }
@@ -43,9 +47,9 @@ struct PurgeView: View {
                         .foregroundStyle(.green)
                         .symbolRenderingMode(.hierarchical)
                     Text("No artifacts found")
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(.system(size: headlineSize, weight: .semibold))
                     Text("No node_modules, DerivedData, or other\nbuild artifacts found in your project folders.")
-                        .font(.system(size: 13))
+                        .font(.system(size: bodySize))
                         .foregroundColor(Color(nsColor: .secondaryLabelColor))
                         .multilineTextAlignment(.center)
                     Button("Scan again") { Task { await viewModel.scan() } }

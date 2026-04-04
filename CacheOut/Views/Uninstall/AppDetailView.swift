@@ -17,6 +17,11 @@ struct AppDetailView: View {
     let selectedApp: AppItem?
     var onUninstalled: ((UUID) -> Void)? = nil
 
+    // Dynamic Type — hero numbers and headings scale with user's font size setting
+    @ScaledMetric(relativeTo: .largeTitle) private var heroSize: CGFloat = 32
+    @ScaledMetric(relativeTo: .title2)     private var titleSize: CGFloat = 20
+    @ScaledMetric(relativeTo: .body)       private var bodySize: CGFloat = 13
+
     @State private var isUninstalling = false
     @State private var showConfirm    = false
     @State private var didUninstall   = false
@@ -75,13 +80,13 @@ struct AppDetailView: View {
                         .shadow(color: .black.opacity(0.12), radius: 8, y: 4)
 
                     Text(app.name)
-                        .font(.system(size: 20, weight: .semibold))
+                        .font(.system(size: titleSize, weight: .semibold))
 
                     // POLISH-03: use resolvedSize (from measured remnants) when the
                     // AppItem was created by drag-and-drop with size=0.
                     let displaySize = app.size > 0 ? app.size : resolvedSize
                     Text(formatBytes(displaySize))
-                        .font(.system(size: 32, weight: .bold))
+                        .font(.system(size: heroSize, weight: .bold))
                         .monospacedDigit()
 
                     Text("Total space to free")
@@ -180,7 +185,20 @@ struct AppDetailView: View {
     @ViewBuilder
     private func uninstallButton(for app: AppItem) -> some View {
         let checkedSize = remnants.filter(\.checked).reduce(0) { $0 + $1.size }
-        if isUninstalling {
+        let isAppleApp = isAppleInstalledApp(app.path)
+
+        if isAppleApp {
+            AppleAppUninstallCard(app: app) {
+                // After successful privileged uninstall, dismiss the detail pane
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                    didUninstall = true
+                    trashedSize  = app.appSize
+                }
+                if let id = app.id as UUID? {
+                    onUninstalled?(id)
+                }
+            }
+        } else if isUninstalling {
             HStack(spacing: 10) {
                 ProgressView().controlSize(.small).tint(.white)
                 Text("Moving to Trash…")
@@ -222,6 +240,16 @@ struct AppDetailView: View {
                 Text("This will move \(formatBytes(checkedSize)) of selected files to the Trash. You can recover them if needed.")
             }
         }
+    }
+
+    /// Returns true when the app bundle is owned by root — meaning it was
+    /// installed by Apple (iMovie, GarageBand, Pages, Numbers, Keynote, etc.)
+    /// and cannot be trashed by a user process. Finder handles these via
+    /// authentication, but Cache Out runs as the current user without sudo.
+    private func isAppleInstalledApp(_ appPath: String) -> Bool {
+        guard let attrs = try? FileManager.default.attributesOfItem(atPath: appPath),
+              let ownerID = attrs[.ownerAccountID] as? Int else { return false }
+        return ownerID == 0   // root uid = 0
     }
 
     // MARK: — Perform uninstall — only deletes checked remnants
@@ -360,9 +388,9 @@ struct AppDetailView: View {
                     .symbolRenderingMode(.hierarchical)
             }
             Text("\(app.name) removed")
-                .font(.system(size: 17, weight: .semibold))
+                .font(.system(size: titleSize, weight: .semibold))
             Text("\(formatBytes(trashedSize)) moved to Trash")
-                .font(.system(size: 13))
+                .font(.system(size: bodySize))
                 .foregroundColor(Color(nsColor: .secondaryLabelColor))
             Text("Empty the Trash to permanently free the space.")
                 .font(.system(size: 11))
@@ -418,7 +446,7 @@ struct AppDetailView: View {
                     .font(.system(size: 14))
                     .foregroundColor(.orange)
                     .symbolRenderingMode(.hierarchical)
-                Text("Check Login Items")
+                Text("Check login items")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundColor(Color(nsColor: .labelColor))
                 Spacer()

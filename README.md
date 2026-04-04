@@ -5,6 +5,21 @@
 ![macOS](https://img.shields.io/badge/macOS-26%2B-black)
 ![Swift](https://img.shields.io/badge/Swift-6-orange)
 ![License](https://img.shields.io/badge/license-MIT-green)
+![Tests](https://img.shields.io/badge/tests-passing-brightgreen)
+
+---
+
+## Screenshots
+
+| Clean | Analyze |
+|:---:|:---:|
+| ![Clean tab](screenshots/clean-light.png) | ![Analyze tab](screenshots/analyze-light.png) |
+
+| Dev Purge | Duplicates | Status |
+|:---:|:---:|:---:|
+| ![Dev Purge tab](screenshots/devpurge-light.png) | ![Duplicates tab](screenshots/duplicates-light.png) | ![Status tab](screenshots/status-light.png) |
+
+> Dark mode screenshots in `screenshots/` — all tabs have light and dark variants.
 
 ---
 
@@ -41,7 +56,6 @@ None of them do everything. You need all three for full coverage, and two of the
 | Open source | ❌ | ❌ | ❌ | ✅ |
 
 The one feature nobody else has: **Dev Purge**. Cache Out scans your project directories and removes `node_modules`, `DerivedData`, `.gradle`, `Pods`, `venv`, `.next`, `.nuxt`, `target`, and `build` folders across every project at once — with recent projects auto-protected so you never accidentally nuke active work.
-
 
 ---
 
@@ -99,7 +113,11 @@ xcodebuild test \
   -destination "platform=macOS"
 ```
 
-The test suite covers: formatter correctness, whitelist size filtering (BUG-03 regression), clean/purge dry-run safety (no files deleted), selection isolation, duplicate grouping logic, and PurgeScanner artifact detection.
+The test suite covers: formatters and edge cases, whitelist size filtering (BUG-03 regression),
+clean/purge dry-run safety, selection isolation, duplicate grouping and SHA-256 logic,
+PurgeScanner artifact detection and nesting, StartupScanner plist parsing, SystemMonitor
+derived computations, ViewModel state management, FileCategory classification, error handling
+for all scanner paths, MVVM architecture assertions, and concurrency-safety checks.
 
 ---
 
@@ -108,7 +126,7 @@ The test suite covers: formatter correctness, whitelist size filtering (BUG-03 r
 | Script | Purpose | When to run |
 |---|---|---|
 | `generate_xcodeproj.py` | Regenerates `project.pbxproj` deterministically | After adding or removing any `.swift` file |
-| `validate_placeholders.sh` | Blocks archive if Sparkle keys or Team ID are unfilled | Wire into Xcode Build Phases: Target → Build Phases → "+" → New Run Script Phase, drag above "Sign Binary With Entitlements", set script to `"${SRCROOT}/validate_placeholders.sh"`, enable "For install builds only" |
+| `validate_placeholders.sh` | Blocks archive if Sparkle keys or Team ID are unfilled | Wire into Xcode Build Phases → New Run Script Phase, drag above "Sign Binary With Entitlements", enable "For install builds only" |
 
 ---
 
@@ -118,7 +136,7 @@ Cache Out requires **Full Disk Access** to scan all cache folders:
 
 > System Settings → Privacy & Security → Full Disk Access → Cache Out ✓
 
-The app requests this on first launch. Without it, some paths under `~/Library` are invisible to the scanner and the permission-denied screen is shown with a direct link to System Settings.
+The app requests this on first launch. Without it, some paths under `~/Library` are invisible to the scanner and a permission-denied screen is shown with a direct link to System Settings.
 
 ---
 
@@ -131,7 +149,9 @@ Cache Out targets **macOS 26 Tahoe** with Apple's Liquid Glass design language:
 - Only semantic Apple colors — zero hardcoded hex values
 - SF Pro for UI text, SF Mono for paths and sizes
 - Sentence case throughout
-- Respects `accessibilityReduceMotion`, Increase Contrast, dark/light mode, Dynamic Type
+- Respects `accessibilityReduceMotion`, Increase Contrast, dark/light mode, Dynamic Type (`@ScaledMetric` on every view)
+
+See [DESIGN.md](DESIGN.md) for the full design system.
 
 ---
 
@@ -144,7 +164,6 @@ Cache Out targets **macOS 26 Tahoe** with Apple's Liquid Glass design language:
 | `⌘,` | Settings |
 | `⌘W` | Close window |
 | `⌘Q` | Quit |
-
 
 ---
 
@@ -168,6 +187,7 @@ Cache Out/
 ├── validate_placeholders.sh       ← pre-archive guard (wire into Build Phases)
 ├── exportOptions.plist            ← notarization workflow (fill YOUR_TEAM_ID)
 ├── appcast.xml                    ← Sparkle update feed (fill after first DMG)
+├── screenshots/                   ← light + dark PNG for README
 ├── Cache Out.xcodeproj/
 ├── CacheOut/
 │   ├── MoleApp.swift              ← @main, AppDelegate, NSStatusItem
@@ -184,7 +204,7 @@ Cache Out/
 │   │   ├── DuplicateScanner.swift
 │   │   ├── MoleService.swift      ← Dev Purge only; wraps mo CLI
 │   │   ├── MoleUpdateService.swift
-│   │   ├── SparkleUpdater.swift
+│   │   ├── SparkleUpdater.swift   ← full 9-step release workflow inside
 │   │   ├── StartupScanner.swift
 │   │   └── SystemMonitor.swift
 │   ├── ViewModels/                ← one ViewModel per tab
@@ -195,12 +215,31 @@ Cache Out/
 │       ├── LaunchAtLogin.swift
 │       └── SidebarLogger.swift    ← debug only (#if DEBUG)
 └── CacheOutTests/
-    ├── CacheOutTests.swift        ← formatters, relativeDaysAgo
+    ├── AppScannerTests.swift      ← directorySize, system-path exclusion
+    ├── CacheOutTests.swift        ← formatters, relativeDaysAgo, Int.nonZero
     ├── CleanViewModelTests.swift  ← whitelist filtering, BUG-01/03 regressions
     ├── DuplicateScannerTests.swift← SHA-256 grouping logic
+    ├── ErrorHandlingTests.swift   ← error paths, MVVM architecture, concurrency
     ├── IntegrationTests.swift     ← dry-run safety, selection isolation
-    └── PurgeViewModelTests.swift  ← scan root discovery, artifact detection
+    ├── PurgeViewModelTests.swift  ← scan root discovery, artifact detection
+    ├── StartupScannerTests.swift  ← plist parsing, StartupSource raw values
+    ├── SystemMonitorTests.swift   ← health score, CPU/memory/disk bounds
+    └── ViewModelTests.swift       ← AnalyzeVM, APFSSnapshotVM, DuplicatesVM,
+                                      LargeFilesVM, OrphanedAppsVM, PurgeVM,
+                                      StartupVM, FileCategory, whitelist normalisation
 ```
+
+---
+
+## Release checklist
+
+Before tagging a release:
+
+1. Fill in `YOUR_TEAM_ID` in `exportOptions.plist`
+2. Run the 9-step notarization workflow documented in `SparkleUpdater.swift`
+3. Run `sign_update CacheOut-x.x.x.dmg` → paste `edSignature` + byte size into `appcast.xml`
+4. Push `appcast.xml` to `main` so Sparkle can find the update
+5. Tag the release: `git tag v1.x.x && git push --tags`
 
 ---
 
