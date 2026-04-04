@@ -95,7 +95,7 @@ class CleanViewModel: ObservableObject {
     // MARK: — Core scan work — all paths measured concurrently via async let
     private func performScan() async {
         let home = NSHomeDirectory()
-        let p = ScanPaths(home: home)
+        let p = CleanScanner.ScanPaths(home: home)
 
         // TCC permission probe — use the FileManager URL API so the read actually
         // exercises the TCC gate rather than just checking whether the path exists.
@@ -138,7 +138,7 @@ class CleanViewModel: ObservableObject {
         async let _pipCache    = Task.detached(priority: .userInitiated) { self.dirSize(p.pipCache) }.value
         async let _cargoCache  = Task.detached(priority: .userInitiated) { self.dirSize(p.cargoCache) }.value
         async let _goModCache  = Task.detached(priority: .userInitiated) { self.dirSize(p.goModCache) }.value
-        async let _nodeResult  = countNodeModules(home: home)
+        async let _nodeResult  = CleanScanner.countNodeModules(home: home)
         async let _chromeSz    = Task.detached(priority: .userInitiated) { self.dirSize(p.chrome) }.value
         async let _safariSz    = Task.detached(priority: .userInitiated) { self.dirSize(p.safari) }.value
         async let _firefoxSz   = Task.detached(priority: .userInitiated) { self.dirSize(p.firefox) }.value
@@ -150,12 +150,11 @@ class CleanViewModel: ObservableObject {
         async let _slackSz     = Task.detached(priority: .userInitiated) { self.dirSize(p.slack) }.value
         async let _spotifySz   = Task.detached(priority: .userInitiated) { self.dirSize(p.spotify) }.value
         async let _trashSz     = Task.detached(priority: .userInitiated) { self.dirSize(p.trash) }.value
-        async let _trashCount  = Task.detached(priority: .userInitiated) { self.trashItemCount(p.trash) }.value
+        async let _trashCount  = Task.detached(priority: .userInitiated) { CleanScanner.trashItemCount(p.trash) }.value
         async let _iosBackupSz = Task.detached(priority: .userInitiated) { self.dirSize(p.iosBackup) }.value
         async let _iosUpdateSz = Task.detached(priority: .userInitiated) { self.dirSize(p.iosUpdates) }.value
-        // FEATURE-04: discover additional app caches dynamically
         async let _dynamicAppSubs = Task.detached(priority: .userInitiated) {
-            self.discoverDynamicAppCaches(
+            CleanScanner.discoverDynamicAppCaches(
                 home: home,
                 alreadyCovered: [p.docker, p.slack, p.spotify]
             )
@@ -311,7 +310,6 @@ class CleanViewModel: ObservableObject {
             }
             let progress = Double(idx + 1) / Double(selectedItems.count)
             state = .cleaning(progress: progress)
-            try? await Task.sleep(nanoseconds: 50_000_000)
         }
         if !dryRun && selectedCategories.contains(.trash) {
             try? fm.removeItem(at: URL(fileURLWithPath: expand("~/.Trash")))
@@ -397,177 +395,11 @@ class CleanViewModel: ObservableObject {
 
     func reset() { categoriesData = []; state = .idle; lastScanned = nil }
 
-    // MARK: — Filesystem helpers
-    // NOTE: .skipsHiddenFiles is intentionally NOT set — many caches (.npm, .gradle,
-    // .cargo, etc.) live inside hidden dot-directories. Skipping them understates sizes.
-    // .skipsPackageDescendants is kept so we don't recurse into .app bundles.
+    // NOTE: skipHidden=false is intentional — many caches (.npm, .gradle, .cargo, etc.)
+    // live inside hidden dot-directories. Skipping them understates sizes.
+    // skipPackages=false: we want to count inside .app bundles for App cache rows.
     nonisolated func dirSize(_ path: String) -> Int64 {
-        let fm = FileManager.default
-        guard let e = fm.enumerator(at: URL(fileURLWithPath: path),
-              includingPropertiesForKeys: [.totalFileAllocatedSizeKey, .fileAllocatedSizeKey],
-              options: [.skipsPackageDescendants]) else { return 0 }
-        var total: Int64 = 0
-        while let url = e.nextObject() as? URL {
-            total += Int64((try? url.resourceValues(forKeys: [.totalFileAllocatedSizeKey]))?.totalFileAllocatedSize ?? 0)
-        }
-        return total
+        FileSystemUtils.allocatedSize(path: path, skipHidden: false, skipPackages: false)
     }
 
-    nonisolated func trashItemCount(_ path: String) -> Int {
-        (try? FileManager.default.contentsOfDirectory(atPath: path))?.count ?? 0
-    }
-
-    nonisolated func countNodeModules(home: String) async -> (count: Int, size: Int64) {
-        // Mirror PurgeViewModel.defaultScanRoots() — check ~ directly AND
-        // one level inside ~/Documents and ~/Desktop for dev folder names.
-        let devNames = ["Projects","Developer","dev","GitHub","github",
-                        "code","src","work","repos","Repos","Code","Dev"]
-        let fm = FileManager.default
-        var roots: [String] = []
-
-        for name in devNames {
-            let path = (home as NSString).appendingPathComponent(name)
-            if fm.fileExists(atPath: path) { roots.append(path) }
-        }
-        for container in ["Documents", "Desktop"] {
-            let containerPath = (home as NSString).appendingPathComponent(container)
-            guard let entries = try? fm.contentsOfDirectory(atPath: containerPath) else { continue }
-            for entry in entries where devNames.contains(entry) {
-                let path = (containerPath as NSString).appendingPathComponent(entry)
-                var isDir: ObjCBool = false
-                if fm.fileExists(atPath: path, isDirectory: &isDir), isDir.boolValue {
-                    if !roots.contains(path) { roots.append(path) }
-                }
-            }
-        }
-        if roots.isEmpty {
-            for name in ["Documents", "Desktop"] {
-                let path = (home as NSString).appendingPathComponent(name)
-                if fm.fileExists(atPath: path) { roots.append(path) }
-            }
-        }
-
-        var count = 0; var total: Int64 = 0
-        for root in roots {
-            guard let e = fm.enumerator(at: URL(fileURLWithPath: root),
-                  includingPropertiesForKeys: [.isDirectoryKey],
-                  options: [.skipsHiddenFiles]) else { continue }
-            let urls = e.compactMap { $0 as? URL }
-            for url in urls {
-                if url.lastPathComponent == "node_modules",
-                   (try? url.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == true {
-                    count += 1; total += dirSize(url.path); e.skipDescendants()
-                }
-            }
-        }
-        return (count, total)
-    }
-
-    // MARK: — FEATURE-04: Dynamic app cache discovery
-    // Enumerates ~/Library/Caches/ for subdirectories not already covered by
-    // hardcoded entries, resolves their app name from installed bundles,
-    // filters to >10 MB, caps at 10 results sorted by size descending.
-    nonisolated func discoverDynamicAppCaches(home: String, alreadyCovered: [String]) -> [SubItem] {
-        let fm = FileManager.default
-        let cachesDir = (home as NSString).appendingPathComponent("Library/Caches")
-
-        // Build a set of already-covered cache paths (normalised, no trailing slash)
-        let coveredPaths = Set(alreadyCovered.map {
-            ($0 as NSString).standardizingPath
-        })
-        // Also skip com.apple.* system caches and known browser caches
-        let skipPrefixes = ["com.apple.", "org.mozilla.", "com.google.Chrome",
-                            "com.microsoft.edgemac", "com.spotify."]
-
-        guard let entries = try? fm.contentsOfDirectory(atPath: cachesDir) else { return [] }
-
-        let minSize: Int64 = 10 * 1024 * 1024  // 10 MB
-        let cap = 10
-
-        var candidates: [(name: String, path: String, size: Int64)] = []
-
-        for entry in entries {
-            // Skip known prefixes
-            if skipPrefixes.contains(where: { entry.hasPrefix($0) }) { continue }
-
-            let fullPath = (cachesDir as NSString).appendingPathComponent(entry)
-            let normPath = (fullPath as NSString).standardizingPath
-
-            // Skip already covered paths
-            if coveredPaths.contains(normPath) { continue }
-
-            var isDir: ObjCBool = false
-            guard fm.fileExists(atPath: fullPath, isDirectory: &isDir), isDir.boolValue
-            else { continue }
-
-            let sz = dirSize(fullPath)
-            guard sz >= minSize else { continue }
-
-            // Resolve a friendly display name from the bundle identifier
-            let displayName = resolveAppDisplayName(bundleID: entry, home: home, fm: fm)
-            candidates.append((name: "\(displayName) cache", path: fullPath, size: sz))
-        }
-
-        return candidates
-            .sorted { $0.size > $1.size }
-            .prefix(cap)
-            .map { SubItem(name: $0.name, path: $0.path, size: $0.size) }
-    }
-
-    // Looks up a human-readable name for a bundle ID by scanning installed apps.
-    // Falls back to the raw bundle ID if no match is found.
-    nonisolated private func resolveAppDisplayName(bundleID: String, home: String,
-                                                    fm: FileManager) -> String {
-        let searchDirs = ["/Applications", (home as NSString).appendingPathComponent("Applications")]
-        for dir in searchDirs {
-            guard let apps = try? fm.contentsOfDirectory(atPath: dir) else { continue }
-            for app in apps where app.hasSuffix(".app") {
-                let plist = "\(dir)/\(app)/Contents/Info.plist"
-                guard let dict = NSDictionary(contentsOfFile: plist) as? [String: Any],
-                      let bid = dict["CFBundleIdentifier"] as? String,
-                      bid == bundleID,
-                      let name = dict["CFBundleDisplayName"] as? String
-                              ?? dict["CFBundleName"] as? String
-                else { continue }
-                return name
-            }
-        }
-        // Strip bundle-ID suffix noise: "com.vendor.AppName" → "AppName"
-        return bundleID.components(separatedBy: ".").last ?? bundleID
-    }
 }  // end CleanViewModel
-
-// MARK: — Pre-computed expanded paths (Sendable value type, safe for Task.detached)
-private struct ScanPaths: Sendable {
-    let derivedData, gradleCache, cocoapods, npmCache, yarnCache: String
-    let pipCache, cargoCache, goModCache: String
-    let chrome, safari, firefox, edge: String
-    let logs, tmp, crashReports: String
-    let docker, slack, spotify, trash: String
-    let iosBackup, iosUpdates: String
-
-    init(home: String) {
-        func e(_ p: String) -> String { p.hasPrefix("~/") ? home + p.dropFirst(1) : p }
-        derivedData  = e("~/Library/Developer/Xcode/DerivedData")
-        gradleCache  = e("~/.gradle/caches")
-        cocoapods    = e("~/Library/Caches/CocoaPods")
-        npmCache     = e("~/.npm")
-        yarnCache    = e("~/.yarn/cache")
-        pipCache     = e("~/Library/Caches/pip")
-        cargoCache   = e("~/.cargo/registry/cache")
-        goModCache   = e("~/go/pkg/mod/cache")
-        chrome       = e("~/Library/Caches/Google/Chrome")
-        safari       = e("~/Library/Caches/com.apple.Safari")
-        firefox      = e("~/Library/Caches/Firefox")
-        edge         = e("~/Library/Caches/com.microsoft.edgemac")
-        logs         = "/private/var/log"
-        tmp          = "/private/tmp"
-        crashReports = e("~/Library/Logs/DiagnosticReports")
-        docker       = e("~/Library/Containers/com.docker.docker/Data")
-        slack        = e("~/Library/Application Support/Slack/Cache")
-        spotify      = e("~/Library/Caches/com.spotify.client")
-        trash        = e("~/.Trash")
-        iosBackup    = e("~/Library/Application Support/MobileSync/Backup")
-        iosUpdates   = e("~/Library/iTunes/iPhone Software Updates")
-    }
-}

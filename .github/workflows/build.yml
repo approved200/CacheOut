@@ -25,12 +25,15 @@ jobs:
           fi
 
       - name: Build
+        # Override MACOSX_DEPLOYMENT_TARGET so the app (targeting macOS 26 for
+        # Liquid Glass / Tahoe APIs locally) compiles on the macOS-15 CI runner.
         run: |
           xcodebuild build \
             -project "Cache Out.xcodeproj" \
             -scheme "Cache Out" \
             -configuration Debug \
             -destination "platform=macOS" \
+            MACOSX_DEPLOYMENT_TARGET=15.0 \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
@@ -39,16 +42,22 @@ jobs:
               -scheme "Cache Out" \
               -configuration Debug \
               -destination "platform=macOS" \
+              MACOSX_DEPLOYMENT_TARGET=15.0 \
               CODE_SIGN_IDENTITY="" \
               CODE_SIGNING_REQUIRED=NO \
               CODE_SIGNING_ALLOWED=NO
 
       - name: Test
+        # Override MACOSX_DEPLOYMENT_TARGET so the test target (set to macOS 26
+        # for local Tahoe development) can run on the macOS-15 CI runner.
+        # The override only affects the test build — it does not change Info.plist
+        # or the shipping binary's minimum OS requirement.
         run: |
           xcodebuild test \
             -project "Cache Out.xcodeproj" \
             -scheme "CacheOutTests" \
             -destination "platform=macOS" \
+            MACOSX_DEPLOYMENT_TARGET=15.0 \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
@@ -56,6 +65,7 @@ jobs:
               -project "Cache Out.xcodeproj" \
               -scheme "CacheOutTests" \
               -destination "platform=macOS" \
+              MACOSX_DEPLOYMENT_TARGET=15.0 \
               CODE_SIGN_IDENTITY="" \
               CODE_SIGNING_REQUIRED=NO \
               CODE_SIGNING_ALLOWED=NO

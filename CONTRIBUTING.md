@@ -15,11 +15,14 @@ Cache Out is open source and welcomes contributions. This guide covers everythin
 ## Getting started
 
 ```bash
-git clone https://github.com/apoorv/cache-out
+git clone https://github.com/approved200/CacheOut
 cd "Cache Out"
-python3 generate_xcodeproj.py   # required after any .swift file add/remove
+bash setup-hooks.sh          # install git hooks (one-time, per clone)
+python3 generate_xcodeproj.py
 open "Cache Out.xcodeproj"
 ```
+
+The `setup-hooks.sh` step installs a pre-commit hook that automatically re-runs `generate_xcodeproj.py` whenever you stage a `.swift` file, so `project.pbxproj` stays in sync without any manual step.
 
 In Xcode: select the **Cache Out** scheme → set your Team under Signing & Capabilities → ⌘R.
 
@@ -45,7 +48,9 @@ Or in Xcode: select the **CacheOutTests** scheme → ⌘U.
 
 ## Adding a new .swift file
 
-Run `python3 generate_xcodeproj.py` after adding or removing any `.swift` file. The script regenerates `project.pbxproj` deterministically so diffs are clean.
+If you ran `setup-hooks.sh` after cloning, this is handled automatically — the pre-commit hook re-runs `generate_xcodeproj.py` and stages the updated `project.pbxproj` whenever you commit a `.swift` change.
+
+If you skipped the hook setup, run `python3 generate_xcodeproj.py` manually after adding or removing any `.swift` file.
 
 ---
 

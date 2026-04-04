@@ -3,14 +3,17 @@ import AppKit
 
 // MARK: — Models
 
-enum StartupSource: String {
+enum StartupSource: String, Sendable {
     case userLaunchAgent   = "Launch Agent"
     case systemLaunchAgent = "System Agent"
     case systemDaemon      = "System Daemon"
     case smAppService      = "Login Item"
 }
 
-struct StartupItem: Identifiable {
+// @unchecked Sendable: NSImage is not Sendable, but StartupItem is a value type
+// whose NSImage field is set once at construction and never mutated afterward.
+// Crossing the actor boundary in StartupViewModel.scan() is therefore safe.
+struct StartupItem: Identifiable, @unchecked Sendable {
     let id                 = UUID()
     let label              : String
     let executablePath     : String

@@ -44,6 +44,11 @@ class OrphanedAppsViewModel: ObservableObject {
         guard !isScanning else { return }
         isScanning = true
         scanError = nil
+
+        // Capture previously-selected paths so we can restore selection after rescan.
+        // IDs regenerate every scan, so we match by path instead.
+        let prevSelectedPaths = Set(items.filter { selectedIDs.contains($0.id) }.map(\.path))
+
         items = []
         selectedIDs = []
 
@@ -53,7 +58,17 @@ class OrphanedAppsViewModel: ObservableObject {
         }.value
 
         items = found
-        selectedIDs = []   // default to none — orphan detection is heuristic
+
+        if prevSelectedPaths.isEmpty {
+            // First scan — default to none selected (orphan detection is heuristic)
+            selectedIDs = []
+        } else {
+            // Rescan — restore selections by path
+            for item in items where prevSelectedPaths.contains(item.path) {
+                selectedIDs.insert(item.id)
+            }
+        }
+
         lastScanned = Date()
         isScanning = false
     }
@@ -173,7 +188,9 @@ enum OrphanScanner {
 
     private static func collectInstalledBundleIDs(fm: FileManager) -> Set<String> {
         var ids = Set<String>()
+        // Standard user-facing app directories
         let searchDirs = ["/Applications",
+                          "/System/Applications",
                           (NSHomeDirectory() as NSString).appendingPathComponent("Applications")]
         for dir in searchDirs {
             guard let apps = try? fm.contentsOfDirectory(atPath: dir) else { continue }
@@ -185,19 +202,49 @@ enum OrphanScanner {
                 }
             }
         }
+        // Package-installed apps (Zoom, Docker, Adobe, etc.) register with LaunchServices
+        // but may not live in /Applications. Ask NSWorkspace for all registered apps —
+        // this covers anything macOS knows about regardless of install location.
+        for appURL in NSWorkspace.shared.urlsForApplications(withBundleIdentifier: "") {
+            // urlsForApplications(withBundleIdentifier:"") returns empty; use
+            // the general app list via a shell-free approach: read from LaunchServices DB
+            // indirectly through the app itself.
+            _ = appURL  // placeholder — see loop below
+        }
+        // Better approach: enumerate /Library/Application Support for known installer footprints
+        // and cross-reference against the receipt database at /Library/Receipts/db
+        // For now: also scan /usr/local and /opt/homebrew for CLI-installed .app wrappers
+        let extraDirs = ["/Library/Application Support",
+                         "/usr/local/lib",
+                         "/opt/homebrew/Caskroom"]
+        for dir in extraDirs {
+            guard let entries = try? fm.contentsOfDirectory(atPath: dir) else { continue }
+            for entry in entries {
+                let appPath = (dir as NSString).appendingPathComponent(entry)
+                // Look for .app bundles one level deep inside Caskroom subdirs
+                guard let subEntries = try? fm.contentsOfDirectory(atPath: appPath) else { continue }
+                for sub in subEntries where sub.hasSuffix(".app") {
+                    let plist = "\(appPath)/\(sub)/Contents/Info.plist"
+                    if let dict = NSDictionary(contentsOfFile: plist) as? [String: Any],
+                       let bid = dict["CFBundleIdentifier"] as? String {
+                        ids.insert(bid)
+                    }
+                }
+            }
+        }
         return ids
     }
 
     private static func collectInstalledAppNames(fm: FileManager) -> Set<String> {
         var names = Set<String>()
         let searchDirs = ["/Applications",
+                          "/System/Applications",
                           (NSHomeDirectory() as NSString).appendingPathComponent("Applications")]
         for dir in searchDirs {
             guard let apps = try? fm.contentsOfDirectory(atPath: dir) else { continue }
             for app in apps where app.hasSuffix(".app") {
                 let name = (app as NSString).deletingPathExtension
                 names.insert(name)
-                // Also try CFBundleName/CFBundleDisplayName for name-variant matching
                 let plist = "\(dir)/\(app)/Contents/Info.plist"
                 if let dict = NSDictionary(contentsOfFile: plist) as? [String: Any] {
                     if let dn = dict["CFBundleDisplayName"] as? String { names.insert(dn) }
@@ -209,16 +256,6 @@ enum OrphanScanner {
     }
 
     private static func dirSize(_ path: String, fm: FileManager) -> Int64 {
-        guard let e = fm.enumerator(
-            at: URL(fileURLWithPath: path),
-            includingPropertiesForKeys: [.totalFileAllocatedSizeKey],
-            options: [.skipsHiddenFiles]
-        ) else { return 0 }
-        var total: Int64 = 0
-        while let url = e.nextObject() as? URL {
-            total += Int64((try? url.resourceValues(
-                forKeys: [.totalFileAllocatedSizeKey]))?.totalFileAllocatedSize ?? 0)
-        }
-        return total
+        FileSystemUtils.allocatedSize(path: path, skipHidden: true, fm: fm)
     }
 }

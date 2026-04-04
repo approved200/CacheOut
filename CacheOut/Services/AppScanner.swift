@@ -128,18 +128,7 @@ final class AppScanner: Sendable {
 
     // internal (not private) so AppDetailView can reuse it for group container measurement
     nonisolated static func directorySize(path: String, fm: FileManager) -> Int64 {
-        guard let e = fm.enumerator(at: URL(fileURLWithPath: path),
-              includingPropertiesForKeys: [.totalFileAllocatedSizeKey, .fileAllocatedSizeKey],
-              options: [.skipsHiddenFiles]) else { return 0 }
-        var total: Int64 = 0
-        while let url = e.nextObject() as? URL {
-            let s = (try? url.resourceValues(forKeys: [.totalFileAllocatedSizeKey]))?
-                .totalFileAllocatedSize
-                ?? (try? url.resourceValues(forKeys: [.fileAllocatedSizeKey]))?
-                .fileAllocatedSize ?? 0
-            total += Int64(s)
-        }
-        return total
+        FileSystemUtils.allocatedSize(path: path, skipHidden: false, skipPackages: false, fm: fm)
     }
 
     nonisolated private static func mdLastUsed(path: String) -> Date? {

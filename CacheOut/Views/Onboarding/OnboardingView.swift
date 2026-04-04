@@ -110,19 +110,19 @@ struct OnboardingView: View {
         }
     }
 
-    // MARK: — Page 3: You're set
+    // MARK: — Page 3: Tour prompt
     private var prefsPage: some View {
         VStack(spacing: 16) {
             Spacer()
-            Image(systemName: "checkmark.circle.fill")
+            Image(systemName: "map")
                 .font(.system(size: 56))
-                .foregroundColor(.green)
+                .foregroundStyle(.tint)
                 .symbolRenderingMode(.hierarchical)
 
-            Text("You're all set")
+            Text("One last thing")
                 .font(.system(size: 22, weight: .semibold))
 
-            Text("Let's take a quick tour so you know\nwhat everything does.")
+            Text("Take a quick tour to see what each\ntool does — takes about 30 seconds.")
                 .font(.system(size: 13))
                 .foregroundColor(Color(nsColor: .secondaryLabelColor))
                 .multilineTextAlignment(.center)

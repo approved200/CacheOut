@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct StatusView: View {
-    @StateObject private var monitor = SystemMonitor()
+    @ObservedObject var monitor: SystemMonitor
     @EnvironmentObject private var cta: ToolbarCTAState
 
     @ScaledMetric(relativeTo: .title2) private var macNameSize: CGFloat = 15
@@ -114,16 +114,21 @@ struct StatusView: View {
             monitor.startMonitoring()
             syncCTA()
         }
+        .onChange(of: monitor.healthScore) { _, _ in syncCTA() }
         .onDisappear { monitor.stopMonitoring(); cta.label = "" }
     }
 
     private func syncCTA() {
+        // Only surface "Go to Clean" when the health score indicates pressure
+        // (disk, CPU, or memory is elevated). A healthy system doesn't need
+        // the nudge — showing it unconditionally is noise.
+        guard monitor.healthScore < 80 else {
+            cta.label = ""; cta.isEnabled = false; cta.action = nil
+            return
+        }
         cta.label     = "Go to Clean"
         cta.isEnabled = true
         cta.action    = {
-            // Navigate to the Clean tab so the user sees the current state
-            // and decides whether to scan. Never auto-trigger a scan from here —
-            // the user must initiate it themselves via ⌘R or the toolbar button.
             NotificationCenter.default.post(name: .switchTab, object: NavItem.clean)
         }
     }

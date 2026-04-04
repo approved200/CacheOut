@@ -261,15 +261,6 @@ enum PurgeScanner {
     }
 
     private static func allocatedSize(url: URL, fm: FileManager) -> Int64 {
-        guard let e = fm.enumerator(
-            at: url,
-            includingPropertiesForKeys: [.totalFileAllocatedSizeKey],
-            options: [.skipsHiddenFiles]
-        ) else { return 0 }
-        var total: Int64 = 0
-        while let u = e.nextObject() as? URL {
-            total += Int64((try? u.resourceValues(forKeys: [.totalFileAllocatedSizeKey]))?.totalFileAllocatedSize ?? 0)
-        }
-        return total
+        FileSystemUtils.allocatedSize(path: url.path, skipHidden: true, fm: fm)
     }
 }

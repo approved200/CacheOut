@@ -12,7 +12,13 @@ class DuplicatesViewModel: ObservableObject {
     /// Active category filters. Empty = show all.
     @Published var activeCategories: Set<FileCategory> = []
     /// Custom scan roots added via the in-view "Scan this folder…" button.
-    @Published var customScanRoots: [String] = []
+    /// Persisted to UserDefaults so roots survive app restarts.
+    @Published var customScanRoots: [String] = [] {
+        didSet {
+            let joined = customScanRoots.joined(separator: "\n")
+            UserDefaults.standard.set(joined, forKey: "duplicatesScanRoots")
+        }
+    }
     /// Tracks every (original path → path in Trash) pair from the last remove operation.
     /// Populated by remove(keeping:from:) and removeAll(). Used to drive "Put back" restore.
     /// Cleared at the start of each new scan so it only reflects the most recent session.
@@ -33,6 +39,12 @@ class DuplicatesViewModel: ObservableObject {
     private var scanTask: Task<Void, Never>? = nil
     private var lastScanned: Date? = nil
     private let staleDuration: TimeInterval = 5 * 60
+
+    init() {
+        // Restore persisted scan roots
+        let raw = UserDefaults.standard.string(forKey: "duplicatesScanRoots") ?? ""
+        customScanRoots = raw.split(separator: "\n").map(String.init).filter { !$0.isEmpty }
+    }
 
     // MARK: — Smart entry point
     func scanIfNeeded() async {

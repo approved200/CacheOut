@@ -10,19 +10,15 @@ struct DiskNode: Identifiable {
 }
 
 // MARK: — Off-main-thread disk scanner
-// Heavy enumeration runs in a detached task so the actor stays free during scanning.
-actor DiskScanner {
+// Stateless enum — all methods are static. Callers dispatch to a background task
+// themselves (see AnalyzeViewModel). There is no mutable state to protect, so
+// `actor` isolation provided no real guarantee and was removed.
+enum DiskScanner {
 
     // Returns up to `limit` largest visible children of `path`, sorted by size desc.
     // At volume root we pass limit: 0 (unlimited) to match DaisyDisk behaviour — show all
     // top-level directories. For drilled-in subdirectory views, limit: 20 is enough.
-    func topChildren(of path: String, limit: Int = 20) async -> [DiskNode] {
-        await Task.detached(priority: .userInitiated) {
-            DiskScanner.scanChildren(of: path, limit: limit)
-        }.value
-    }
-
-    nonisolated static func scanChildren(of path: String, limit: Int = 20) -> [DiskNode] {
+    static func scanChildren(of path: String, limit: Int = 20) -> [DiskNode] {
         let fm = FileManager.default
         guard let entries = try? fm.contentsOfDirectory(atPath: path) else { return [] }
         var nodes: [DiskNode] = []
@@ -38,23 +34,12 @@ actor DiskScanner {
         return limit > 0 ? Array(sorted.prefix(limit)) : sorted
     }
 
-    private nonisolated static func allocatedSize(path: String, fm: FileManager) -> Int64 {
-        guard let e = fm.enumerator(
-            at: URL(fileURLWithPath: path),
-            includingPropertiesForKeys: [.totalFileAllocatedSizeKey],
-            options: [.skipsHiddenFiles, .skipsPackageDescendants]
-        ) else { return 0 }
-        var total: Int64 = 0
-        while let url = e.nextObject() as? URL {
-            total += Int64(
-                (try? url.resourceValues(forKeys: [.totalFileAllocatedSizeKey]))?
-                    .totalFileAllocatedSize ?? 0
-            )
-        }
-        return total
+    static func allocatedSize(path: String, fm: FileManager = .default) -> Int64 {
+        // Treemap use case: skip hidden files and treat .app bundles as atomic.
+        FileSystemUtils.allocatedSize(path: path, skipHidden: true, skipPackages: true, fm: fm)
     }
 
-    private nonisolated static func modAge(path: String, fm: FileManager) -> Int? {
+    private static func modAge(path: String, fm: FileManager) -> Int? {
         guard let d = (try? fm.attributesOfItem(atPath: path))?[.modificationDate] as? Date
         else { return nil }
         return Int(Date().timeIntervalSince(d) / 86400)

@@ -11,7 +11,33 @@
 
 ## Screenshots
 
-> Screenshots will be added after the first notarized build. See `screenshots/README.md` for instructions on generating them.
+### Light mode
+
+| Clean | Uninstall | Leftovers |
+|:---:|:---:|:---:|
+| ![Clean](screenshots/Light%20Mode/clean-light.png) | ![Uninstall](screenshots/Light%20Mode/uninstall-light.png) | ![Leftovers](screenshots/Light%20Mode/leftovers-light.png) |
+
+| Analyze | Dev Purge | Duplicates |
+|:---:|:---:|:---:|
+| ![Analyze](screenshots/Light%20Mode/analyze-light.png) | ![Dev Purge](screenshots/Light%20Mode/dev%20purge-light.png) | ![Duplicates](screenshots/Light%20Mode/duplicates-light.png) |
+
+| Large Files | Snapshots | Startup | Status |
+|:---:|:---:|:---:|:---:|
+| ![Large Files](screenshots/Light%20Mode/large%20files-light.png) | ![Snapshots](screenshots/Light%20Mode/snapshots-light.png) | ![Startup](screenshots/Light%20Mode/startup-light.png) | ![Status](screenshots/Light%20Mode/status-light.png) |
+
+### Dark mode
+
+| Clean | Uninstall | Leftovers |
+|:---:|:---:|:---:|
+| ![Clean](screenshots/Dark%20Mode/clean-dark.png) | ![Uninstall](screenshots/Dark%20Mode/uninstall-dark.png) | ![Leftovers](screenshots/Dark%20Mode/leftovers-dark.png) |
+
+| Analyze | Dev Purge | Duplicates |
+|:---:|:---:|:---:|
+| ![Analyze](screenshots/Dark%20Mode/analyze-dark.png) | ![Dev Purge](screenshots/Dark%20Mode/dev%20purge-dark.png) | ![Duplicates](screenshots/Dark%20Mode/duplicates-dark.png) |
+
+| Large Files | Snapshots | Startup | Status |
+|:---:|:---:|:---:|:---:|
+| ![Large Files](screenshots/Dark%20Mode/large%20files-dark.png) | ![Snapshots](screenshots/Dark%20Mode/snapshots-dark.png) | ![Startup](screenshots/Dark%20Mode/startup-dark.png) | ![Status](screenshots/Dark%20Mode/status-dark.png) |
 
 ---
 
@@ -78,15 +104,27 @@ The bundled `mo` CLI is included — no Homebrew install needed.
 
 ---
 
-## Build & run
+## Download
+
+**[⬇ Download Cache Out 1.0.0 for macOS](https://github.com/approved200/CacheOut/releases/latest)**
+
+Requires macOS 26 (Tahoe) or later.
+
+1. Download `CacheOut-1.0.0.dmg` from the [latest release](https://github.com/approved200/CacheOut/releases/latest)
+2. Open the DMG and drag **Cache Out** to your Applications folder
+3. On first launch, go to **System Settings → Privacy & Security → Full Disk Access** and enable Cache Out
+
+> The app is notarized by Apple and safe to open. If macOS shows a warning on first launch, right-click the app and choose Open.
+
+---
+
+## Build from source
 
 ```bash
 git clone https://github.com/approved200/CacheOut
 cd "Cache Out"
-
-# Required after adding or removing any .swift file:
+bash setup-hooks.sh             # install git hooks (one-time)
 python3 generate_xcodeproj.py
-
 open "Cache Out.xcodeproj"
 ```
 
@@ -176,13 +214,15 @@ brew install tw93/tap/mole
 ```
 Cache Out/
 ├── generate_xcodeproj.py          ← run after any .swift add/remove
+├── setup-hooks.sh                 ← installs git hooks (run once after clone)
+├── hooks/pre-commit               ← auto-runs generate_xcodeproj.py on commit
 ├── validate_placeholders.sh       ← pre-archive guard (wire into Build Phases)
 ├── exportOptions.plist            ← notarization workflow (fill YOUR_TEAM_ID)
 ├── appcast.xml                    ← Sparkle update feed (fill after first DMG)
 ├── screenshots/                   ← light + dark PNG for README
 ├── Cache Out.xcodeproj/
 ├── CacheOut/
-│   ├── MoleApp.swift              ← @main, AppDelegate, NSStatusItem
+│   ├── CacheOutApp.swift          ← @main, AppDelegate, NSStatusItem
 │   ├── ContentView.swift          ← NavigationSplitView, 9 ViewModels, toolbar
 │   ├── Info.plist
 │   ├── CacheOut.entitlements

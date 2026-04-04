@@ -49,3 +49,9 @@ screenshots/mocked/
 
 #Claude
 .claude
+
+# Local release configuration — fill in YOUR_TEAM_ID before archiving.
+# The template (exportOptions.plist) stays in git; local overrides go here.
+exportOptions.local.plist
+build/
+*.dmg

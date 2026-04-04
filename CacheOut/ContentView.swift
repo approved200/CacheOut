@@ -87,6 +87,10 @@ struct ContentView: View {
     @StateObject private var largeFilesVM   = LargeFilesViewModel()
     @StateObject private var orphanedVM     = OrphanedAppsViewModel()
     @StateObject private var snapshotVM     = APFSSnapshotViewModel()
+    // SystemMonitor lives here — NOT in StatusView — so the timer survives tab
+    // switches. StatusView uses .id(selectedTab) which destroys/recreates child
+    // views; owning the monitor here gives it the same lifetime as all other VMs.
+    @StateObject private var systemMonitor  = SystemMonitor()
 
     var body: some View {
         ZStack {
@@ -178,7 +182,7 @@ struct ContentView: View {
         case .startup:
             StartupView(viewModel: startupVM)
         case .status:
-            StatusView()
+            StatusView(monitor: systemMonitor)
         }
     }
 

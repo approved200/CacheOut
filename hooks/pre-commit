@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Cache Out pre-commit hook
+# Auto-regenerates project.pbxproj when any .swift file is staged.
+# This prevents "file not found in project" build errors for contributors
+# who add/remove .swift files without manually running generate_xcodeproj.py.
+
+# Check if any .swift files are staged
+if git diff --cached --name-only | grep -q '\.swift$'; then
+    echo "⚙️  Swift files changed — regenerating Xcode project..."
+
+    # Must run from repo root
+    REPO_ROOT="$(git rev-parse --show-toplevel)"
+    cd "$REPO_ROOT" || exit 1
+
+    if ! python3 generate_xcodeproj.py; then
+        echo "❌ generate_xcodeproj.py failed. Fix the error and try again."
+        exit 1
+    fi
+
+    # Stage the regenerated pbxproj so it's included in this commit
+    git add "Cache Out.xcodeproj/project.pbxproj"
+    echo "✅ project.pbxproj updated and staged."
+fi
+
+exit 0

@@ -12,6 +12,7 @@
 		F39DA63DF5F7C0243A52667A = {isa = PBXBuildFile; fileRef = 3EF37B32066B7BAE6D39AB56; };
 		56A93C9FCDA74A7E4330F290 = {isa = PBXBuildFile; fileRef = F3CBF97705079C69195C32F3; };
 		5F08C739D35C972B37AFDC4B = {isa = PBXBuildFile; fileRef = 40D37EFB6A6DB76E3ECF94A5; };
+		43727B2B7A05EAEBA08D2069 = {isa = PBXBuildFile; fileRef = 7F8F2827F8E4579D8522289F; };
 		6964977CD6CF689D585A592F = {isa = PBXBuildFile; fileRef = 6C9E8076ED8D1177A9625D7D; };
 		EFD968700067762BCFB52807 = {isa = PBXBuildFile; fileRef = C83D78ED92A942933AE12F42; };
 		A8BF6EEF504E978D36C06CB2 = {isa = PBXBuildFile; fileRef = A5675EDE920FE2C93CAAD6D4; };
@@ -22,6 +23,8 @@
 		5278447CBB37C4925DFF00B9 = {isa = PBXBuildFile; fileRef = 442988ABD5673D4CD5805E5C; };
 		68004DEC3F149D8CBC344006 = {isa = PBXBuildFile; fileRef = E918348405CC314054DBA759; };
 		C383CCA0C9E61B008C6F540C = {isa = PBXBuildFile; fileRef = C64730E27A67EFD027E47044; };
+		4A655960B54B238A814D1DE6 = {isa = PBXBuildFile; fileRef = C7F0E1A779D83799628A1F47; };
+		9D8331953EB8A6F558870BBF = {isa = PBXBuildFile; fileRef = D56E98CADCA2984F5E8E6A12; };
 		E94360F9E5C3D33961D04C17 = {isa = PBXBuildFile; fileRef = 17A5F5E43D499F20EB8CFC1D; };
 		B9416A23AA54820CB3ED18F4 = {isa = PBXBuildFile; fileRef = 00B79952D4C714530F520916; };
 		A2E128BEB034DCCDF475244D = {isa = PBXBuildFile; fileRef = BC7CC9C75A08EBE3A9261171; };
@@ -100,6 +103,7 @@
 		3EF37B32066B7BAE6D39AB56 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Models.swift; path = "CacheOut/Models/Models.swift"; sourceTree = "<group>"; };
 		F3CBF97705079C69195C32F3 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppScanner.swift; path = "CacheOut/Services/AppScanner.swift"; sourceTree = "<group>"; };
 		40D37EFB6A6DB76E3ECF94A5 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BackgroundCleanScheduler.swift; path = "CacheOut/Services/BackgroundCleanScheduler.swift"; sourceTree = "<group>"; };
+		7F8F2827F8E4579D8522289F = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CleanScanner.swift; path = "CacheOut/Services/CleanScanner.swift"; sourceTree = "<group>"; };
 		6C9E8076ED8D1177A9625D7D = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DiskScanner.swift; path = "CacheOut/Services/DiskScanner.swift"; sourceTree = "<group>"; };
 		C83D78ED92A942933AE12F42 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DuplicateScanner.swift; path = "CacheOut/Services/DuplicateScanner.swift"; sourceTree = "<group>"; };
 		A5675EDE920FE2C93CAAD6D4 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MoleOutputParser.swift; path = "CacheOut/Services/MoleOutputParser.swift"; sourceTree = "<group>"; };
@@ -110,6 +114,8 @@
 		442988ABD5673D4CD5805E5C = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StartupScanner.swift; path = "CacheOut/Services/StartupScanner.swift"; sourceTree = "<group>"; };
 		E918348405CC314054DBA759 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SystemMonitor.swift; path = "CacheOut/Services/SystemMonitor.swift"; sourceTree = "<group>"; };
 		C64730E27A67EFD027E47044 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CacheOutLogger.swift; path = "CacheOut/Utilities/CacheOutLogger.swift"; sourceTree = "<group>"; };
+		C7F0E1A779D83799628A1F47 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FileSystemUtils.swift; path = "CacheOut/Utilities/FileSystemUtils.swift"; sourceTree = "<group>"; };
+		D56E98CADCA2984F5E8E6A12 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FileUtilities.swift; path = "CacheOut/Utilities/FileUtilities.swift"; sourceTree = "<group>"; };
 		17A5F5E43D499F20EB8CFC1D = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Formatters.swift; path = "CacheOut/Utilities/Formatters.swift"; sourceTree = "<group>"; };
 		00B79952D4C714530F520916 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LaunchAtLogin.swift; path = "CacheOut/Utilities/LaunchAtLogin.swift"; sourceTree = "<group>"; };
 		BC7CC9C75A08EBE3A9261171 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SidebarLogger.swift; path = "CacheOut/Utilities/SidebarLogger.swift"; sourceTree = "<group>"; };
@@ -263,6 +269,7 @@
 			children = (
 				F3CBF97705079C69195C32F3,
 				40D37EFB6A6DB76E3ECF94A5,
+				7F8F2827F8E4579D8522289F,
 				6C9E8076ED8D1177A9625D7D,
 				C83D78ED92A942933AE12F42,
 				A5675EDE920FE2C93CAAD6D4,
@@ -280,6 +287,8 @@
 			isa = PBXGroup;
 			children = (
 				C64730E27A67EFD027E47044,
+				C7F0E1A779D83799628A1F47,
+				D56E98CADCA2984F5E8E6A12,
 				17A5F5E43D499F20EB8CFC1D,
 				00B79952D4C714530F520916,
 				BC7CC9C75A08EBE3A9261171,
@@ -544,6 +553,7 @@
 				F39DA63DF5F7C0243A52667A,
 				56A93C9FCDA74A7E4330F290,
 				5F08C739D35C972B37AFDC4B,
+				43727B2B7A05EAEBA08D2069,
 				6964977CD6CF689D585A592F,
 				EFD968700067762BCFB52807,
 				A8BF6EEF504E978D36C06CB2,
@@ -554,6 +564,8 @@
 				5278447CBB37C4925DFF00B9,
 				68004DEC3F149D8CBC344006,
 				C383CCA0C9E61B008C6F540C,
+				4A655960B54B238A814D1DE6,
+				9D8331953EB8A6F558870BBF,
 				E94360F9E5C3D33961D04C17,
 				B9416A23AA54820CB3ED18F4,
 				A2E128BEB034DCCDF475244D,

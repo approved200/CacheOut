@@ -394,7 +394,7 @@ struct DuplicatesSettingsTab: View {
                     VStack(alignment: .leading, spacing: 3) {
                         Text("Use the 'Scan folder\u{2026}' button in the tab")
                             .font(.system(size: 13))
-                        Text("Open the Duplicates tab and tap the pill button to add specific folders. Custom roots are session-scoped and don't persist across launches.")
+                        Text("Open the Duplicates tab and tap the pill button to add specific folders. Roots are saved and restored on next launch.")
                             .font(.system(size: 11))
                             .foregroundColor(Color(nsColor: .secondaryLabelColor))
                     }
@@ -615,10 +615,23 @@ struct AdvancedSettingsTab: View {
     @AppStorage("dryRunMode")    private var dryRunMode    = false
     @AppStorage("debugLogging")  private var debugLogging  = false
     @ObservedObject private var sparkle = SparkleUpdater.shared
+    @State private var showResetConfirm  = false
+    // Easter egg — 5 taps on the "Developer" section header
+    @State private var eggTapCount       = 0
+    @State private var showEasterEgg     = false
 
     var body: some View {
         Form {
-            Section("Developer") {
+            Section(header:
+                Text("Developer")
+                    .onTapGesture {
+                        eggTapCount += 1
+                        if eggTapCount >= 5 {
+                            eggTapCount = 0
+                            showEasterEgg = true
+                        }
+                    }
+            ) {
                 Toggle("Dry run mode (simulate only)", isOn: $dryRunMode)
                 if dryRunMode {
                     HStack(spacing: 6) {
@@ -688,23 +701,44 @@ struct AdvancedSettingsTab: View {
                     }
                 }
                 Button("Reset all settings…") {
-                    let keys = ["showMenuBar","notifyOnComplete","scanOnLaunch",
-                                "unusedAppDays","appearanceMode","showTourOnLaunch",
-                                "autoCleanSchedule","cleanWhitelist",
-                                "purgeSkipRecentDays","purgeScanDirs",
-                                "dryRunMode","debugLogging",
-                                "duplicatesMinSizeKB","duplicatesExcludedDirs",
-                                "largeFilesMinSizeKB","largeFilesExcludedDirs",
-                                "hasCompletedOnboarding","hasSeenTour"]
-                    keys.forEach { UserDefaults.standard.removeObject(forKey: $0) }
-                    // Re-apply system appearance and cancel pending background clean
-                    NSApp.appearance = nil
-                    NotificationCenter.default.post(name: .autoCleanScheduleChanged, object: nil)
+                    showResetConfirm = true
                 }
                 .foregroundColor(.red)
+                .confirmationDialog(
+                    "Reset all settings?",
+                    isPresented: $showResetConfirm,
+                    titleVisibility: .visible
+                ) {
+                    Button("Reset", role: .destructive) {
+                        let keys = [
+                            "showMenuBar", "notifyOnComplete", "scanOnLaunch",
+                            "unusedAppDays", "appearanceMode", "showTourOnLaunch",
+                            "autoCleanSchedule", "cleanWhitelist",
+                            "purgeSkipRecentDays", "purgeScanDirs",
+                            "dryRunMode", "debugLogging",
+                            "duplicatesMinSizeKB", "duplicatesExcludedDirs", "duplicatesScanRoots",
+                            "largeFilesMinSizeKB", "largeFilesExcludedDirs",
+                        ]
+                        // hasCompletedOnboarding and hasSeenTour are intentionally
+                        // excluded — resetting them would re-show onboarding on next
+                        // launch, which is almost never what the user intends here.
+                        keys.forEach { UserDefaults.standard.removeObject(forKey: $0) }
+                        NSApp.appearance = nil
+                        NotificationCenter.default.post(name: .autoCleanScheduleChanged, object: nil)
+                    }
+                    Button("Cancel", role: .cancel) { }
+                } message: {
+                    Text("All preferences, whitelists, scan roots, and schedules will be cleared. This cannot be undone.")
+                }
             }
         }
         .formStyle(.grouped)
+        // Easter egg alert — triggered by 5 taps on the "Developer" section header
+        .alert("👋😉", isPresented: $showEasterEgg) {
+            Button("Thanks, I needed that!", role: .cancel) { }
+        } message: {
+            Text("Hello Mrs Grewal,\n\nThank you for being the first test user 😉")
+        }
     }
 
 }

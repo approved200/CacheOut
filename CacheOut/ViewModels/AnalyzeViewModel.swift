@@ -28,7 +28,6 @@ class AnalyzeViewModel: ObservableObject {
         return (rootPath as NSString).lastPathComponent
     }
 
-    private let scanner = DiskScanner()
     private let staleDuration: TimeInterval = 5 * 60
 
     var currentPath: String {
@@ -50,7 +49,9 @@ class AnalyzeViewModel: ObservableObject {
             let path = currentPath
             isScanning = true
             // Unlimited at all levels — see scan() comment above
-            let fresh = await scanner.topChildren(of: path, limit: 0)
+            let fresh = await Task.detached(priority: .userInitiated) {
+                DiskScanner.scanChildren(of: path, limit: 0)
+            }.value
             nodes = fresh
             lastScanned = Date()
             isScanning = false
@@ -85,7 +86,9 @@ class AnalyzeViewModel: ObservableObject {
         // Pass limit 0 (unlimited) at all levels — DiskScanner only reads direct children
         // of `path` (one level deep, not recursive) so even folders with 200+ entries
         // are fast. Capping at 20 when drilled in was hiding items vs DaisyDisk.
-        nodes = await scanner.topChildren(of: path, limit: 0)
+        nodes = await Task.detached(priority: .userInitiated) {
+            DiskScanner.scanChildren(of: path, limit: 0)
+        }.value
         lastScanned = Date()
         isScanning = false
     }
