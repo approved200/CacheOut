@@ -122,10 +122,13 @@ struct PrivilegedItemCard: View {
 // MARK: — AppleAppUninstallCard
 // Shown in AppDetailView when isAppleInstalledApp returns true.
 // Same pattern: Terminal command + "Uninstall with my password" button.
+// onStarted is called immediately when the user taps the button (before the
+// password dialog appears) so AppDetailView can record which app is in-flight.
 
 struct AppleAppUninstallCard: View {
-    let app: AppItem
-    let onComplete: () -> Void
+    let app       : AppItem
+    var onStarted : (() -> Void)? = nil   // called when button is tapped
+    let onComplete: () -> Void            // called on success
 
     @State private var isRunning   = false
     @State private var result      : PrivilegedItemResult? = nil
@@ -218,9 +221,8 @@ struct AppleAppUninstallCard: View {
     }
 
     private func runWithAuth() async {
+        onStarted?()   // notify parent immediately — before the blocking password dialog
         isRunning = true
-        let errorMsg = await PrivilegedCleanHelper.deleteWithAuth(
-            path: app.path, itemName: app.name)
         isRunning = false
         if let err = errorMsg {
             result = PrivilegedItemResult(success: false, message: err)

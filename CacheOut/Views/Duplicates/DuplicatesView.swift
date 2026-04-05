@@ -170,30 +170,35 @@ struct DuplicatesView: View {
 
             ScrollView {
                 LazyVStack(spacing: 12) {
-                    if viewModel.filteredGroups.isEmpty && !viewModel.lastTrashedItems.isEmpty {
-                        // All groups removed — show a quiet confirmation state
-                        VStack(spacing: 10) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.system(size: 36)).foregroundStyle(.green)
-                                .symbolRenderingMode(.hierarchical)
-                            Text("All duplicates removed")
-                                .font(.system(size: 15, weight: .semibold))
-                            Text("Moved \(viewModel.lastTrashedItems.count) file\(viewModel.lastTrashedItems.count == 1 ? "" : "s") to Trash.")
-                                .font(.system(size: 12))
-                                .foregroundColor(Color(nsColor: .secondaryLabelColor))
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 40)
-                    } else {
-                        ForEach(viewModel.filteredGroups) { group in
-                            DuplicateGroupRow(group: group, onRemove: { keep in
-                                Task { await viewModel.remove(keeping: keep, from: group) }
-                            })
-                        }
+                    ForEach(viewModel.filteredGroups) { group in
+                        DuplicateGroupRow(group: group, onRemove: { keep in
+                            Task { await viewModel.remove(keeping: keep, from: group) }
+                        })
                     }
                 }
                 .padding(20)
             }
+            // "All duplicates removed" success state — rendered as a full-height
+            // overlay so it's centred in the right pane, not top-aligned in the list.
+            .overlay {
+                if viewModel.filteredGroups.isEmpty && !viewModel.lastTrashedItems.isEmpty {
+                    VStack(spacing: 10) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 44))
+                            .foregroundStyle(.green)
+                            .symbolRenderingMode(.hierarchical)
+                        Text("All duplicates removed")
+                            .font(.system(size: 15, weight: .semibold))
+                        Text("Moved \(viewModel.lastTrashedItems.count) file\(viewModel.lastTrashedItems.count == 1 ? "" : "s") to Trash.")
+                            .font(.system(size: 13))
+                            .foregroundColor(Color(nsColor: .secondaryLabelColor))
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                }
+            }
+            .animation(.spring(response: 0.35, dampingFraction: 0.8),
+                       value: viewModel.filteredGroups.isEmpty)
 
             Divider()
             // Status bar — always visible, contains Put Back button

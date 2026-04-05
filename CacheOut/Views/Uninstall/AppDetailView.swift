@@ -33,6 +33,11 @@ struct AppDetailView: View {
     /// Used in successState so the number reflects what was actually moved, not
     /// the full AppItem total (which includes unchecked remnants).
     @State private var trashedSize: Int64 = 0
+    /// The ID of the app currently being uninstalled via privileged helper.
+    /// Kept separate from isUninstalling so that selection changes during a
+    /// long privileged operation (e.g. iMovie) don't corrupt the detail pane
+    /// of the newly-selected app.
+    @State private var uninstallingAppID: UUID? = nil
 
     var body: some View {
         Group {
@@ -51,11 +56,27 @@ struct AppDetailView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: didUninstall)
         .onChange(of: selectedApp?.id) { _, _ in
-            withAnimation(.easeInOut(duration: 0.15)) {
-                didUninstall   = false
-                isUninstalling = false
-                uninstallError = nil
-                trashedSize    = 0
+            // If a privileged uninstall is in-flight for a *different* app,
+            // don't reset isUninstalling — that would make the new selection
+            // appear to be uninstalling. Only reset UI state when the selection
+            // changes to an app that isn't the one currently being processed.
+            let newID = selectedApp?.id
+            if uninstallingAppID == nil || uninstallingAppID == newID {
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    didUninstall   = false
+                    isUninstalling = false
+                    uninstallError = nil
+                    trashedSize    = 0
+                }
+            } else {
+                // Switching away during a privileged uninstall — only reset
+                // the display fields; leave isUninstalling alone so the
+                // in-flight card on the *previous* app can still complete.
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    didUninstall   = false
+                    uninstallError = nil
+                    trashedSize    = 0
+                }
             }
             remnants = buildRemnants(for: selectedApp)
             resolvedSize    = remnants.reduce(0) { $0 + $1.size }
@@ -188,16 +209,23 @@ struct AppDetailView: View {
         let isAppleApp = isAppleInstalledApp(app.path)
 
         if isAppleApp {
-            AppleAppUninstallCard(app: app) {
-                // After successful privileged uninstall, dismiss the detail pane
+            AppleAppUninstallCard(app: app, onStarted: {
+                // Record which app is being uninstalled so selection changes
+                // during the (potentially long) privileged operation don't
+                // corrupt the detail pane of a newly-selected app.
+                uninstallingAppID = app.id
+            }, onComplete: {
+                // Only transition to success state if this app is still selected.
+                // If the user navigated away during the uninstall, just clean up.
+                uninstallingAppID = nil
+                guard selectedApp?.id == app.id else { return }
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
                     didUninstall = true
                     trashedSize  = app.appSize
+                    isUninstalling = false
                 }
-                if let id = app.id as UUID? {
-                    onUninstalled?(id)
-                }
-            }
+                onUninstalled?(app.id)
+            })
         } else if isUninstalling {
             HStack(spacing: 10) {
                 ProgressView().controlSize(.small).tint(.white)
