@@ -223,6 +223,8 @@ struct AppleAppUninstallCard: View {
     private func runWithAuth() async {
         onStarted?()   // notify parent immediately — before the blocking password dialog
         isRunning = true
+        let errorMsg = await PrivilegedCleanHelper.deleteWithAuth(
+            path: app.path, itemName: app.name)
         isRunning = false
         if let err = errorMsg {
             result = PrivilegedItemResult(success: false, message: err)
