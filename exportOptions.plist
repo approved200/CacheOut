@@ -68,7 +68,7 @@
 	-->
 
 	<key>method</key>
-	<string>developer-id</string>
+	<string>mac-application</string>
 
 	<!--
 	  Replace with your actual Team ID (10-character string from developer.apple.com).
@@ -79,9 +79,6 @@
 
 	<key>signingStyle</key>
 	<string>automatic</string>
-
-	<key>hardened runtime</key>
-	<true/>
 
 	<key>stripSwiftSymbols</key>
 	<true/>
