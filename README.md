@@ -114,7 +114,7 @@ Requires macOS 26 (Tahoe) or later.
 2. Open the DMG and drag **Cache Out** to your Applications folder
 3. On first launch, go to **System Settings → Privacy & Security → Full Disk Access** and enable Cache Out
 
-> The app is notarized by Apple and safe to open. If macOS shows a warning on first launch, right-click the app and choose Open.
+> **First launch note:** Because this app is not notarized through Apple's paid developer program, macOS will show a security warning when you first open it. To open it anyway: **right-click the app → Open → Open** (do this once — it won't ask again after that).
 
 ---
 
@@ -260,19 +260,6 @@ Cache Out/
                                       LargeFilesVM, OrphanedAppsVM, PurgeVM,
                                       StartupVM, FileCategory, whitelist normalisation
 ```
-
----
-
-## Release checklist
-
-Before tagging a release:
-
-1. Fill in `YOUR_TEAM_ID` in `exportOptions.plist`
-2. Run the 9-step notarization workflow documented in `SparkleUpdater.swift`
-3. Run `sign_update CacheOut-x.x.x.dmg` → paste `edSignature` + byte size into `appcast.xml`
-4. Push `appcast.xml` to `main` so Sparkle can find the update
-5. Tag the release: `git tag v1.x.x && git push --tags`
-
 ---
 
 ## License

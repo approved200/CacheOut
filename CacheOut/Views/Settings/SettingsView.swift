@@ -616,22 +616,19 @@ struct AdvancedSettingsTab: View {
     @AppStorage("debugLogging")  private var debugLogging  = false
     @ObservedObject private var sparkle = SparkleUpdater.shared
     @State private var showResetConfirm  = false
-    // Easter egg — 5 taps on the "Developer" section header
+    // Easter egg — 5 taps on the version string in the About section
     @State private var eggTapCount       = 0
     @State private var showEasterEgg     = false
 
+    private var versionString: String {
+        let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
+        let b = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "100"
+        return "Version \(v) (\(b))"
+    }
+
     var body: some View {
         Form {
-            Section(header:
-                Text("Developer")
-                    .onTapGesture {
-                        eggTapCount += 1
-                        if eggTapCount >= 5 {
-                            eggTapCount = 0
-                            showEasterEgg = true
-                        }
-                    }
-            ) {
+            Section("Developer") {
                 Toggle("Dry run mode (simulate only)", isOn: $dryRunMode)
                 if dryRunMode {
                     HStack(spacing: 6) {
@@ -700,6 +697,22 @@ struct AdvancedSettingsTab: View {
                         NSWorkspace.shared.open(url)
                     }
                 }
+                // Version string — tap 5 times for a surprise
+                Button {
+                    eggTapCount += 1
+                    if eggTapCount >= 5 {
+                        eggTapCount = 0
+                        showEasterEgg = true
+                    }
+                } label: {
+                    HStack {
+                        Text(versionString)
+                            .font(.system(size: 12))
+                            .foregroundColor(Color(nsColor: .secondaryLabelColor))
+                        Spacer()
+                    }
+                }
+                .buttonStyle(.plain)
                 Button("Reset all settings…") {
                     showResetConfirm = true
                 }
