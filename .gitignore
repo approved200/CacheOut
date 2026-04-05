@@ -35,7 +35,6 @@ Pods/
 Podfile.lock
 
 # Build outputs
-*.dmg
 *.pkg
 export/
 build/
@@ -54,4 +53,3 @@ screenshots/mocked/
 # The template (exportOptions.plist) stays in git; local overrides go here.
 exportOptions.local.plist
 build/
-*.dmg
