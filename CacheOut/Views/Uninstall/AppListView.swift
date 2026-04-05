@@ -168,13 +168,23 @@ struct AppIconView: View {
         }
         .frame(width: size, height: size)
         .task(id: path) {
-            // Run icon lookup off the main thread — NSWorkspace does file I/O
-            let loadedIcon = await Task.detached(priority: .utility) {
-                guard FileManager.default.fileExists(atPath: path) else { return NSImage?.none }
-                let img = NSWorkspace.shared.icon(forFile: path)
-                img.size = NSSize(width: 64, height: 64)  // load at 2× for retina
-                return NSImage?.some(img)
-            }.value
+            // NSImage is not Sendable, so it can't cross actor boundaries via
+            // Task.detached. Instead we bridge to a plain Thread (no Swift
+            // concurrency actor context) via a checked continuation, do the
+            // NSWorkspace file I/O there, then resume back on the MainActor.
+            let loadedIcon: NSImage? = await withCheckedContinuation { continuation in
+                let t = Thread {
+                    guard FileManager.default.fileExists(atPath: path) else {
+                        continuation.resume(returning: nil)
+                        return
+                    }
+                    let img = NSWorkspace.shared.icon(forFile: path)
+                    img.size = NSSize(width: 64, height: 64)  // load at 2× for retina
+                    continuation.resume(returning: img)
+                }
+                t.qualityOfService = .utility
+                t.start()
+            }
             if let img = loadedIcon {
                 withAnimation(.easeIn(duration: 0.15)) { icon = img }
             }

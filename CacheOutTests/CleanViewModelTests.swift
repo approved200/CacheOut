@@ -126,10 +126,10 @@ final class CleanCategoryRoutingTests: XCTestCase {
     }
 }
 
-// MARK: - AppScanner system-path exclusion
+// MARK: - AppScanner system-path exclusion (clean module)
 // Final Cut Pro, Logic Pro, Xcode all use com.apple.* bundle IDs but live in
 // /Applications/ and should be scannable. Only /System/ apps must be excluded.
-final class AppScannerExclusionTests: XCTestCase {
+final class AppScannerSystemPathTests: XCTestCase {
 
     func testSystemPath_isExcluded() {
         // Apps under /System/ cannot be user-removed; must be skipped

@@ -1,5 +1,5 @@
 import SwiftUI
-import UserNotifications
+@preconcurrency import UserNotifications
 
 struct SettingsView: View {
     var body: some View {
